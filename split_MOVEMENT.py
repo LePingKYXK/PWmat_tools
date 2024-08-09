@@ -27,4 +27,39 @@ parser.add_argument("-s", "--steps",
 args = parser.parse_args()
 
 
+def read_data(filename, fs_list):
+    structure = []
+    configure = []
+    femto_sec = [float(fs) for fs in fs_list]
+    print(f"The input femtoseconds are: {femto_sec}")
 
+    with open(filename, 'r') as fo:
+        for line in fo:
+            matches = re.search(r"Iteration\s*=\s+(\d+\.\d+E[-+]?\d+)", line)
+            if matches:
+                iteration = float(matches.group(1))
+
+    return configure
+
+
+def save_atom_config(configure, fs_list):
+    for ind, atom_config in enumerate(configure):
+        filename = "".join(("atom_", str(fs_list[ind]), "fs.config"))
+        with open(filename, "w") as fw:
+            for line in atom_config:
+                fw.write(line + '\n')
+        print(f"The {fs_list[ind]} fs step has saved as {filename}")
+
+
+def main():
+    ''' Workflow:
+    (1) read the MOVEMENT file block by block and fetch the coordinates based on the specific step(s);
+    (2) save the specific coordinates into atom_(*)fs.config file(s).
+    '''
+    inputfile, fs_list = args.filename, args.steps
+    configure = read_data(inputfile, fs_list)
+    save_atom_config(configure, fs_list)
+    
+
+if __name__ == "__main__":
+    main()
