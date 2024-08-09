@@ -38,7 +38,14 @@ def read_data(filename, fs_list):
             matches = re.search(r"Iteration\s*=\s+(\d+\.\d+E[-+]?\d+)", line)
             if matches:
                 iteration = float(matches.group(1))
-
+                if iteration in femto_sec:
+                    while not re.search(r"\s*(--+)\s*", line):
+                        structure.append(line.rstrip("\n"))
+                        line = next(fo)
+                    configure.append(structure)
+                    structure = []
+                elif iteration > femto_sec[-1]:
+                    break
     return configure
 
 
