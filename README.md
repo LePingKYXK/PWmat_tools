@@ -1,5 +1,11 @@
 # PWmat_tools
 Python scripts for PWmat
+## Package Requirements
+- Python >= 3.8
+- Numpy
+- Scipy
+- Matplotlib
+I strongly recommend using `Anaconda3` to manage these packages.
 
 ## check_PWmat_convergence.py
 The `check_PWmat_convergence.py` script checks the convergence of Total Energy and Average Force.
@@ -23,4 +29,8 @@ The `split_MOVEMENT.py` script splits the MOVEMENT file into `atom_XXXfs.config`
 
 ## num_excited_electrons.py
 
+
+--------------------------
+# PWmat_tools 简介
+**PWmat_tools**系列脚本用于处理**PWmat**计算的结果文件。这些脚本以`Python3`语言编写，调用了`Numpy`，`Scipy`，`Matplotlib`等库，因此建议使用`Anaconda3`套件来管理和运行`Python3`脚本。
 
