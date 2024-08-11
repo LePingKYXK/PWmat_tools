@@ -40,7 +40,7 @@ The `split_MOVEMENT.py` script splits the MOVEMENT file into `atom_XXXfs.config`
 $ python check_PWmat_convergence.py -h
 usage: check_PWmat_convergence.py [-h] [-i <etot.input file>] [-r <RELAXSTEPS file>] [-p <plot graph>] [-v]
 
-Author: Dr. Huan Wang, Email: huan.wang@whut.edu.cn, Version: v1.0, Date: August 1, 2024
+Author: Dr. Huan Wang, Email: huan.wang@whut.edu.cn, Version: v1.0, Date: August 7, 2024
 
 optional arguments:
   -h, --help            show this help message and exit
