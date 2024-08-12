@@ -17,19 +17,19 @@ The `convert_MDSTEPS.py` script converts the `MDSTEPS` file into the table forma
 
 
 ## check_rtTDDFT_Time.py
-The `check_rtTDDFT_Time.py` script checks the TDDFT_TIME parameters.
+The `check_rtTDDFT_Time.py` script checks the TDDFT_TIME parameters and converts these parameters into experimental conditions. This script can also plot the profile of laser intensity vs time by using the `-p` option.
 
 
 ## split_MOVEMENT.py
 The `split_MOVEMENT.py` script splits the MOVEMENT file into `atom_XXXfs.config` files based on the input `XXX` femtosecond.
 
 
-## set_rttddft_time.py
-
+## set_rtTDDFT_time.py
+**Still in testing** The `set_rtTDDFT_time.py` script is used to set the $$b1,b2,b3,... ,bN$$ parameters in `TDDFT_TIME` according to the experimental conditions.
 
 
 ## num_excited_electrons.py
-
+The `num_excited_electrons.py` script 
 
 --------------------------
 # PWmat_tools 简介
@@ -77,9 +77,9 @@ python check_rtTDDFT_Time.py -s 10， 200， 500
 即可得到 `atom_10fs.config`，`atom_200fs.config`，`atom_500fs.config`等文件
 
 
-## set_rttddft_time.py
-
+## set_rtTDDFT_time.py
+`set_rtTDDFT_time.py` 脚本用于根据实验条件设置`TDDFT_TIME`的 $$b1,b2,b3,...,bN$$ 参数。仍在测试中。
 
 
 ## num_excited_electrons.py
-
+`num_excited_electrons.py` 脚本用于**计算PWmat在rt-TDDFT计算中被激发到导带中的电子数**。此脚本读取的是`PWmat`自带的`plot_TDDFT.x`脚本处理得到的`plot.TDDFT.DOS`文件，得到被激发的电子数随时间变化的数据。另外，此脚本读取`REPORT`文件中的总电子数，从而进一步得到被激发的电子数的百分比。
