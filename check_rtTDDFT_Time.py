@@ -32,7 +32,7 @@ parser.add_argument("-p", "--plot",
                     metavar="<plot graph>",
                     type=str,
                     help="plot graph",
-                    default="plot",
+                    default="yes",
                     )
 args = parser.parse_args()
 
