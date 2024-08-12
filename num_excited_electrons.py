@@ -31,7 +31,7 @@ parser.add_argument("-p", "--plot_fig",
 #                    metavar="<option for plotting>",
                     type=str,
                     help="option for plotting. y for plotting, n for not",
-                    default=("n"),
+                    default=("yes"),
                     )
 args = parser.parse_args()
 
