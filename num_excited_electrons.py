@@ -12,8 +12,8 @@ parser = ap.ArgumentParser(add_help=True,
                     Author:  Dr. Huan Wang,
                     Email:   huan.wang@whut.edu.cn,
                     Version: v1.0,
-                    Date:    June 30, 2024,
-                    Modify:  July 13, 2024"""
+                    Date:    August 11, 2024,
+                    Modify:  August 13, 2024"""
                     )
 parser.add_argument("-i", "--inputfile",
                     metavar="<plot.TDDFT.DOS>",
@@ -36,11 +36,43 @@ parser.add_argument("-p", "--plot_fig",
 args = parser.parse_args()
 
 
-def sum_electron(data):
+def sum_electron(data: np.array) -> np.array:
+    """
+    This function deals with the summation of excited electrons at each time step.
+
+    Parameters
+    ----------
+    data : Numpy 2D array
+        A numpy 2D array contains the excited electrons at each time step..
+
+    Returns
+    -------
+    TYPE : np.array
+        A numpy array contains the summation of number of excited electrons.
+    """
+    
     return np.sum(data[:,1:], axis=-1)
 
 
-def read_file(inputfile, outputfile):
+def read_file(inputfile: Path, outputfile: Path) -> np.array:
+    """
+    This function collects data from the plot.TDDFT.DOS file and calls the
+    sum_electron() function to add the electrons, than save the results to
+    the output file.
+
+    Parameters
+    ----------
+    inputfile : Path
+        The path to the input file name, the "plot.TDDFT.DOS".
+    outputfile : Path
+        The path to the output file name.
+
+    Returns
+    -------
+    num_elec : numpy 2D array
+        A numpy 2D array contains the Time and Number of excited electrons.
+    """
+
     info = np.genfromtxt(inputfile)
     data = sum_electron(info)
     num_elec = np.column_stack((info[:,0], data))
@@ -50,7 +82,21 @@ def read_file(inputfile, outputfile):
     return num_elec
 
 
-def read_report(filename):
+def read_report(filename: Path) -> float:
+        """
+    This function grabs the total number of electrons from the REPORT file.
+
+    Parameters
+    ----------
+    filename : Path
+        The path to the REPORT file.
+
+    Returns
+    -------
+    number of electrons : int
+        The total number of electrons.
+    """
+
     with open(filename, "r") as fo:
         for line in fo:
             matches = re.search(r'NUM_ELECTRON\s*=\s+(\d+\.\d+)', line, re.IGNORECASE)
@@ -59,7 +105,20 @@ def read_report(filename):
     return float(matches.group(1))
 
 
-def plot_figure(data):
+def plot_figure(data: np.array):
+    """
+    This function plot the Time vs. Number of excited electrons.
+
+    Parameters
+    ----------
+    data : Numpy 2D array
+        A numpy 2D array contains the Time and Number of excited electrons.
+
+    Returns
+    -------
+    None.
+    """
+    
     fig, ax = plt.subplots(figsize=(4, 3))
     ax.plot(data[:, 0], data[:, 1], "-")
     ax.set_xlim([0, data[:, 0].max()])
