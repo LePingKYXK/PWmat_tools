@@ -140,15 +140,17 @@ def main():
                   Please check the file name, or you can specify the file name.\n""")
             exit(1)
     
-    title = "iter, status, E_tot, Aver_F_ion, Max_F_ion, Aver_F_ele, delt_E, delt_rho, SCF_cyc, delt_L, delt_AL, proj_F, proj_F0, F_check".strip().split(",")
-    tfmt = "".join(("{:>4s}","{:^7s}","{:^21s}","{:>11s}"*5,"{:>8s}","{:>9s}","{:>11s}"*4))
-    ifmt = "".join(("{:>3}","{:>7s}","{:>22}","{:>11}"*5,"{:>6}","{:>11}"*5))
-
+    title_cell = "iter, status, E_tot, Aver_F_ion, Max_F_ion, Aver_F_ele, delt_E, delt_rho, SCF_cyc, delt_L, delt_AL, proj_F, proj_F0, F_check".strip().split(",")
+    title_ion = "iter, status, E_tot, Aver_F_ion, Max_F_ion, delt_E, delt_rho, SCF_cyc, delt_L, proj_F, proj_F0, F_check".strip().split(",")
+    
+    tfmt_cell = "".join(("{:>4s}","{:^7s}","{:^21s}","{:>11s}"*5,"{:>8s}","{:>9s}","{:>11s}"*4))
     ifmt_cell = "".join(("{:>3}","{:>7s}","{:>22}","{:>11}"*5,"{:>6}","{:>11}"*5))
+
+    tfmt_ion  = "".join(("{:>4s}","{:^7s}","{:^21s}","{:>11s}"*4,"{:>8s}","{:>9s}","{:>11s}"*3))
     ifmt_ion  = "".join(("{:>3}","{:>7s}","{:>22}","{:>11}"*4,"{:>6}","{:>11}"*4))
 
     criteria = read_etot_input(etot_input)
-    info = read_relaxsteps(relaxsteps)
+    info = read_relaxsteps(relaxsteps, criteria)
 
     if info[-1][1] == '*END':
         print("The optimization job completed.")
@@ -157,29 +159,23 @@ def main():
 
     if args.verbose:
         if criteria > 3:
-            print(tfmt.format(*title_cell))
+            print(tfmt_cell.format(*title_cell))
             for item in info:
-                print(ifmt.format(*item))
-            plot_deltE_deltF(np.array(data).reshape(-1, 14))
+                print(ifmt_cell.format(*item))
+            plot_deltE_deltF(np.array(info).reshape(-1, 14))
 
         elif criteria < 3:
-            print(ifmt_ion.format(*title_ion))
+            print(tfmt_ion.format(*title_ion))
             for item in info:
-                print(ifmt.format(*item))
-            plot_deltE_deltF(np.array(data).reshape(-1, 12))
+                print(ifmt_ion.format(*item))
+            plot_deltE_deltF(np.array(info).reshape(-1, 12))
 
     else:
         if criteria > 3:
-            plot_deltE_deltF(np.array(data).reshape(-1, 14))
+            plot_deltE_deltF(np.array(info).reshape(-1, 14))
         elif criteria < 3:
-            plot_deltE_deltF(np.array(data).reshape(-1, 12))
+            plot_deltE_deltF(np.array(info).reshape(-1, 12))
 
 
 if __name__ == "__main__":
     main()
-        
-        
-  
-
-
-
