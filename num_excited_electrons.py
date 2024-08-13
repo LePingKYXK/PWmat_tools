@@ -83,7 +83,7 @@ def read_file(inputfile: Path, outputfile: Path) -> np.array:
 
 
 def read_report(filename: Path) -> float:
-        """
+    """
     This function grabs the total number of electrons from the REPORT file.
 
     Parameters
