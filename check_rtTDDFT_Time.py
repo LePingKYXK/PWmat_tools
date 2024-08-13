@@ -113,7 +113,7 @@ def main():
     if plot_fig.lower() in ["y", "yes"]:
         plot_figure(td)
 
-def main():
+  
 if __name__ == "__main__":
     main()
 
