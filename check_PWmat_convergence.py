@@ -164,7 +164,7 @@ def main():
                 print(ifmt_cell.format(*item))
             plot_deltE_deltF(np.array(info).reshape(-1, 14))
 
-        elif criteria < 3:
+        elif criteria <= 3:
             print(tfmt_ion.format(*title_ion))
             for item in info:
                 print(ifmt_ion.format(*item))
