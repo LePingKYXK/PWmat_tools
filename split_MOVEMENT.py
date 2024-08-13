@@ -27,7 +27,24 @@ parser.add_argument("-s", "--steps",
 args = parser.parse_args()
 
 
-def read_data(filename, fs_list):
+def read_data(filename: Path, fs_list: list) -> list:
+    """
+    This function reads the MOVEMENT file and then splits and saves
+    each block into a list of lists.
+
+    Parameters
+    ----------
+    filename : Path
+        The MOVEMENT file.
+    fs_list : list
+        The list contains the specific femtosecond.
+
+    Returns
+    -------
+    configure : list of lists
+        A list of lists contains specific configurations of the MD simulation.
+    """
+
     structure = []
     configure = []
     femto_sec = [float(fs) for fs in fs_list]
@@ -49,7 +66,21 @@ def read_data(filename, fs_list):
     return configure
 
 
-def save_atom_config(configure, fs_list):
+def save_atom_config(configure: list, fs_list: list):
+    """
+    This function saves each specific time step as the atom_(*)fs.config file.
+
+    Parameters
+    ----------
+    configure : list of lists
+        A list of lists contains all the configurations during the MD simulation.
+
+    Returns
+    -------
+    None.
+
+    """
+
     for ind, atom_config in enumerate(configure):
         filename = "".join(("atom_", str(fs_list[ind]), "fs.config"))
         with open(filename, "w") as fw:
