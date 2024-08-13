@@ -37,7 +37,7 @@ parser.add_argument("-p", "--plot",
 args = parser.parse_args()
 
 
-def read_info(filename: Path) -> :
+def read_info(filename: Path) -> list:
     """
     This function reads the etot.input (or REPORT) file and parses the TDDFT_TIME and MD_DETAIL parameters.
 
@@ -48,8 +48,10 @@ def read_info(filename: Path) -> :
 
     Returns
     -------
-    values : list
+    td_val : list
         A list contains TDDFT_TIME parameters: itemtype, n, b1, b2, b3, b4, b5.
+    md_val : list
+        A list contains MD_DETAIL parameters: md_type, steps, step size, initial temperature, and final temperature.
     """
 
     with open(filename, "r") as fo:
@@ -171,12 +173,3 @@ def main():
   
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
