@@ -35,7 +35,23 @@ parser.add_argument("-p", "--plot",
 args = parser.parse_args()
 
 
-def grab_info(filename):
+def grab_info(filename: Path) -> list:
+    """
+    This function grab the information from the MDSTEPS file.
+
+    Parameters
+    ----------
+    filename : Path
+        The path to the MDSTEPS file.
+
+    Returns
+    -------
+    header_line : list
+        A list contains header variables.
+    values : list
+        A list of lists contains data in the MDSTEPS file, line by line.
+    """
+
     with open(filename, "r") as file:
         info = file.readlines()
 
@@ -50,15 +66,47 @@ def grab_info(filename):
 
 
 
-def write_file(header_line, data, filename):
+def write_file(header_line: list, data: list, filename: Path):
+    """
+    This function saves the MDSTEPS information into a file with the .csv format.
+
+    Parameters
+    ----------
+    header_line : list
+        A list contains header variables.
+    data : list
+        A list of lists contains data in the MDSTEPS file, line by line.
+    filename : Path
+        The path to the .csv file of MD steps.
+
+    Returns
+    -------
+    None.
+    """
+
     with open(filename, "w", newline='') as output_file:
         csv_writer = csv.writer(output_file)
         csv_writer.writerow(header_line)
         csv_writer.writerows(data)
 
 
-def plot_figure(data):
-        data = np.asfarray(data)
+def plot_figure(data: list):
+    """
+    This function deals with plotting. It will first convert the data into a numpy
+    2D-array with the data type as float. Then, a 2 by 2 figure will plot.
+
+    Parameters
+    ----------
+    data : list
+        A list of lists contains data in the MDSTEPS file, line by line.
+
+    Returns
+    -------
+    None.
+
+    """
+
+    data = np.asfarray(data)
     fig, axs = plt.subplots(2, 2, figsize=(16/2.54, 12/2.54))
 
     # Panel 1, Time vs Total Energy
