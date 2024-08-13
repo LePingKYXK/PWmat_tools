@@ -11,8 +11,9 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang,
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v2.0,
-                           Date:     August 09, 2024""")
+                           Version:  v1.1,
+                           Date:     August 09, 2024
+                           Modified: August 13, 2024""")
 parser.add_argument("-f", "--filename",
                     type=Path,
                     help="The MOVEMENT file",
