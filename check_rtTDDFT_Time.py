@@ -37,7 +37,21 @@ parser.add_argument("-p", "--plot",
 args = parser.parse_args()
 
 
-def read_info(filename):
+def read_info(filename: Path) -> :
+    """
+    This function reads the etot.input (or REPORT) file and parses the TDDFT_TIME and MD_DETAIL parameters.
+
+    Parameters
+    ----------
+    filename : Path
+        The Path to the TDDFT input file, i.e. the etot.input file (or REPORT file).
+
+    Returns
+    -------
+    values : list
+        A list contains TDDFT_TIME parameters: itemtype, n, b1, b2, b3, b4, b5.
+    """
+
     with open(filename, "r") as fo:
         for line in fo:
             matches_td = re.search(r'TDDFT_TIME\s*=\s*([\d., ]+)', line, re.IGNORECASE)
@@ -57,7 +71,25 @@ def integrate_tddft_time(t, b1, b2, b3, b4, b5):
     return b1 * np.exp(-np.square((t - b2) / b3)) * np.sin(b4 * t + b5)
 
 
-def tddft(data_td, data_md):
+def tddft(data_td: list, data_md: list) -> np.array:
+    """
+    This function calculates the time dependent laser energy (in unit of eV),
+    t vs eV.
+    The formula is based on the Manual of PWmat in the rt-TDDFT section.
+
+    Parameters
+    ----------
+    data_td : list
+        A list contains TDDFT_TIME parameters.
+    data_md : list
+        A list contains MD_DETIAL parameters.
+
+    Returns
+    -------
+    data : Numpy 2D-array.
+        A Numpy 2D-array contains time and laser energy.
+    """
+
     td_type, n, b1, b2, b3, b4, b5 = data_td
     md_type, md_step, del_t, T1, T2 = data_md
 
@@ -81,7 +113,20 @@ def tddft(data_td, data_md):
     return data
 
 
-def plot_figure(data):
+def plot_figure(data: np.array):
+    """
+    This function plots a figure of the laser pulse.
+
+    Parameters
+    ----------
+    data : Numpy 2D-array.
+        A Numpy 2D-array contains time and laser energy.
+
+    Returns
+    -------
+    None.
+    """
+
     fig, ax = plt.subplots(figsize=(16/2.54, 9/2.54))
     ax.plot(data[:, 0], data[:, 1], "-")
     ax.set_xlim([0, data[:, 0].max()])
@@ -91,6 +136,17 @@ def plot_figure(data):
 
 
 def main():
+    """
+    Work flow:
+      (1) Read the TDDFT_TIME and MD_DETAIL parameters from the etot.input file.
+      (2) Calculate the laser profile based on the step (1).
+      (3) Plot figure if necessary.
+
+    Returns
+    -------
+    None.
+    """
+
     etot_input, plot_fig = args.filename, args.plot
     data_td, data_md = read_info(etot_input)
     print(f"\nTDDFT_Time: {data_td},\nMD_Detail: {data_md}\n")
@@ -98,7 +154,6 @@ def main():
 
     td = tddft(data_td, data_md)
 
-#    print(f"itemtype: {itemtype}, n: {n}, b1: {b1}, b2: {b2}, b3: {b3}, b4: {b4}, b5: {b5}")
     E_laser      = pc.hbar * b4 / pc.femto / pc.e  # in unit of eV
     lambda_laser = 2 * np.pi * pc.c * pc.giga * pc.femto / b4  # in unit of nm
     FWHM = b3 * np.sqrt(np.log(4)) * np.sqrt(2)
