@@ -126,8 +126,6 @@ def main():
 
     etot_input = args.i
     relaxsteps = args.r
-    print(type(etot_input))
-    print(type(relaxsteps))
     
     file_paths = [etot_input, relaxsteps]
     for file in file_paths:
@@ -151,11 +149,13 @@ def main():
 
     criteria = read_etot_input(etot_input)
     info = read_relaxsteps(relaxsteps, criteria)
-
+    
+    drawline = "-" * 79
+    
     if info[-1][1] == '*END':
-        print("The optimization job completed.")
+        print('\n'.join((drawline, "The optimization job completed.", drawline))))
     else:
-        print("The optimization job is not yet complete!")
+        print('\n'.join((drawline, "The optimization job is not yet complete!", drawline)))
 
     if args.verbose:
         if criteria > 3:
@@ -173,7 +173,7 @@ def main():
     else:
         if criteria > 3:
             plot_deltE_deltF(np.array(info).reshape(-1, 14))
-        elif criteria < 3:
+        elif criteria <= 3:
             plot_deltE_deltF(np.array(info).reshape(-1, 12))
 
 
