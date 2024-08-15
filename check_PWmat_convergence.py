@@ -153,9 +153,9 @@ def main():
     drawline = "-" * 79
     
     if info[-1][1] == '*END':
-        print('\n'.join((drawline, "The optimization job completed.", drawline)))
+        print('\n'.join((drawline, "The optimization job completed. Congratulations！", drawline)))
     else:
-        print('\n'.join((drawline, "The optimization job is not yet complete!", drawline)))
+        print('\n'.join((drawline, "The optimization job is NOT yet complete!", drawline)))
 
     if args.verbose:
         if criteria > 3:
