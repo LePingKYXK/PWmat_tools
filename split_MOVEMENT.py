@@ -49,7 +49,7 @@ def read_data(filename: Path, fs_list: list) -> list:
     structure = []
     configure = []
     femto_sec = [float(fs) for fs in fs_list]
-    print(f"The input femtoseconds are: {femto_sec}")
+    print("".join(("\n", "The input femtoseconds are:", " {:} " * len(femto_sec), "\n")).format(*femto_sec))
 
     with open(filename, 'r') as fo:
         for line in fo:
