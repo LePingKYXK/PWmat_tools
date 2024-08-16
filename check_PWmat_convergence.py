@@ -9,8 +9,9 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang, 
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v1.0,
-                           Date:     August 7, 2024""")
+                           Version:  v2.0,
+                           Date:     August 7, 2024
+                           Modified: August 16, 2024""")
 parser.add_argument("-i",
                     metavar="<etot.input file>",
                     type=Path,
@@ -36,62 +37,81 @@ parser.add_argument("-v", "--verbose",
 args = parser.parse_args()
 
 
-def read_etot_input(filename):
-    pattern = r"RELAX_DETAIL = (.*)"
+def read_etot_input(filename: Path) -> int and str:
+    """
+    This function reads the etot.input file, and then returns the length of
+    the parameters of RELAX_DETAIL.
+
+    Parameters
+    ----------
+    filename : Path
+        The path to the etot.input file.
+
+    Returns
+    -------
+    len(info) : int
+        The length of the parameters of RELAX_DETAIL.
+    dft : str
+        The functional used in the current calculation.
+    """
+    
+    dft = "PBE"
     with open(filename, "r") as fo:
         for line in fo:
-            m = re.findall(pattern, line)
-            if m:
+            functional = re.search(r"XCFUNCTIONAL\s+=\s+(\w+)", line)
+            relaxation = re.findall(r"RELAX_DETAIL\s+=\s+(.*)", line)
+            
+            if functional:
+                dft = functional.group(1)
+            if relaxation:
                 info = m[0].split()
-                break
-    return len(info)
+                
+    return len(info), dft
 
 
-def read_relaxsteps(filename, criteria):
+def read_relaxsteps(filename: Path, dft: str) -> list:
+    """
+    This function deals with the RELAXSTEPS file.
+
+    Parameters
+    ----------
+    filename : Path
+        The path to the RELAXSTEPS file.
+    dft : str
+        The used functional.
+
+    Returns
+    -------
+    The Data list contained the number of iteration setps, the total energies,
+    and the average force of each ionic step.
+    """
+
     all_data = []
     with open(filename) as fo:
         for line in fo:
             info = line.strip().split()
-            if criteria > 3:    # for cell optimization
-                all_data.append((info[1],    # iteration steps
-                                 info[2],    # opt status
-                                 info[4],    # Total Energy
-                                 info[6],    # Average Force
-                                 info[8],    # Maximum Force
-                                 info[10],   # Average stress (eV/Number_of_atom)
-                                 info[12],   # Delta E_total
-                                 info[14],   # Delta Rho
-                                 info[16],   # SCF
-                                 info[18],   # Delta |R - R(new_initial)|
-                                 info[20],   # Delta AL
-                                 info[22],   # p*F
-                                 info[24],   # p*F0
-                                 info[26]))  # Fch (check Force)
+            data = re.findall(r'=\s*([-+]?\d*\.?\d*(?:[Ee][-+]?\d+)?)', line)
+            status = info[2]
+            if dft == "PBE" or dft == None:
+                data.insert(1, status)
+                all_data.append(data)
 
-            elif criteria <= 3:    # for ionic optimization
-                all_data.append((info[1],    # iteration steps
-                                 info[2],    # opt status
-                                 info[4],    # Total Energy
-                                 info[6],    # Average Force
-                                 info[8],    # Maximum Force
-                                 info[10],   # Delta E_total
-                                 info[12],   # Delta Rho
-                                 info[14],   # SCF
-                                 info[16],   # Delta |R - R(new_initial)|
-                                 info[18],   # p*F
-                                 info[20],   # p*F0
-                                 info[22]))  # Fch (check Force)
+            elif dft == "HSE":
+                if info[0] == "HSE":
+                    data.insert(0, info[1])
+                    data.insert(1, status)
+                    all_data.append(data)
     return all_data
 
 
-def plot_deltE_deltF(data):
+def plot_deltE_deltF(data: np.array):
     """
-    This function will plot the evoluation of total energy and average force
+    This function will plot the evolution of total energy and average force
     with the relaxation steps.
     Parameters
     ----------
     data : array
-        numpy array contains the relaxation step.
+        A numpy array contains the relaxation step.
 
     Returns
     -------
@@ -120,8 +140,8 @@ def plot_deltE_deltF(data):
 def main():
     """
     Workflow:
-    1) read data from RELAXSTEPS file. If the user specifid the filename, the given file will be read.
-    2) plot the Energy and the average Force against relax steps. If the user activates the verbose mode, detailed information will be printed on the screen.
+    1) read data from the RELAXSTEPS file. If the user specifies the filename, the given file will be read.
+    2) plot the Energy and the average Force against relax steps. Detailed information will be printed on the screen if the user activates the verbose mode.
     """
 
     etot_input = args.i
@@ -147,8 +167,8 @@ def main():
     tfmt_ion  = "".join(("{:>4s}","{:^7s}","{:^21s}","{:>11s}"*4,"{:>8s}","{:>9s}","{:>11s}"*3))
     ifmt_ion  = "".join(("{:>3}","{:>7s}","{:>22}","{:>11}"*4,"{:>6}","{:>11}"*4))
 
-    criteria = read_etot_input(etot_input)
-    info = read_relaxsteps(relaxsteps, criteria)
+    criteria, dft = read_etot_input(etot_input)
+    info = read_relaxsteps(relaxsteps, dft)
     
     drawline = "-" * 79
     
