@@ -64,7 +64,7 @@ def read_etot_input(filename: Path) -> int and str:
             if functional:
                 dft = functional.group(1)
             if relaxation:
-                info = m[0].split()
+                info = relaxation[0].split()
                 
     return len(info), dft
 
