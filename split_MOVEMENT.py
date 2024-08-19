@@ -21,7 +21,7 @@ parser.add_argument("-f", "--filename",
                     )
 parser.add_argument("-s", "--steps",
                     metavar="<index>",
-                    type=int,
+                    type=float,
                     nargs="+",
                     help="The step in MOVEMENT",
                     )
