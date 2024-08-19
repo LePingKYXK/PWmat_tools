@@ -29,15 +29,15 @@ parser.add_argument("-o", "--output",
 parser.add_argument("-p", "--plot",
                     metavar="<option for plotting>",
                     type=str,
-                    help="option for plotting. y or yest for plotting, while n or no for not",
+                    help="option for plotting. 'y' or 'yes' for plotting, while 'n' or 'no' for not plot",
                     default=("yes"),
                     )
 args = parser.parse_args()
 
 
-def grab_info(filename: Path) -> list:
+def parse_MDSTEPS(filename: Path) -> list and str:
     """
-    This function grab the information from the MDSTEPS file.
+    This function grabs the information from the MDSTEPS file.
 
     Parameters
     ----------
@@ -50,6 +50,8 @@ def grab_info(filename: Path) -> list:
         A list contains header variables.
     values : list
         A list of lists contains data in the MDSTEPS file, line by line.
+    aveTemp : str
+        A string flag. "yes" represents the "Average Temperature".
     """
 
     with open(filename, "r") as file:
@@ -62,8 +64,11 @@ def grab_info(filename: Path) -> list:
     values = []
     for line in info:
         values.append(re.findall(r'[-+]?\d*\.?\d+(?:[Ee][+-]?\d+)?', line))
-    return header_line, values
-
+    if "aveTemp" in header_line:
+        aveTemp = "yes"
+    else:
+        aveTemp = None
+    return header_line, values, aveTemp
 
 
 def write_file(header_line: list, data: list, filename: Path):
@@ -90,10 +95,10 @@ def write_file(header_line: list, data: list, filename: Path):
         csv_writer.writerows(data)
 
 
-def plot_figure(data: list):
+def plot_figure(data: list, flag: str):
     """
     This function deals with plotting. It will first convert the data into a numpy
-    2D-array with the data type as float. Then, a 2 by 2 figure will plot.
+    2D-array with the data type as the float. Then, a 2 by 2 figure will plot.
 
     Parameters
     ----------
@@ -103,7 +108,6 @@ def plot_figure(data: list):
     Returns
     -------
     None.
-
     """
 
     data = np.asfarray(data)
@@ -127,11 +131,19 @@ def plot_figure(data: list):
     axs[1, 0].set_xlabel('Time (fs)')
     axs[1, 0].set_ylabel('Kinetic Energy (eV)')
 
-    # Panel 4, Time vs Temperature
-    axs[1, 1].plot(data[:, 0], data[:, 4])
-    axs[1, 1].set_xlim([0, data[:, 0].max()])
-    axs[1, 1].set_xlabel('Time (fs)')
-    axs[1, 1].set_ylabel('Temperature (K)')
+    # Panel 4, Time vs (average) Temperature
+    if flag:
+        axs[1, 1].plot(data[:, 0], data[:, 5])
+        axs[1, 1].set_xlim([0, data[:, 0].max()])
+        axs[1, 1].set_ylim([0, data[:, 5].max()])
+        axs[1, 1].set_xlabel('Time (fs)')
+        axs[1, 1].set_ylabel('Average Temperature (K)')
+    else:
+        axs[1, 1].plot(data[:, 0], data[:, 4])
+        axs[1, 1].set_xlim([0, data[:, 0].max()])
+        axs[1, 1].set_ylim([0, data[:, 4].max()])
+        axs[1, 1].set_xlabel('Time (fs)')
+        axs[1, 1].set_ylabel('Temperature (K)')
 
     plt.tight_layout()
     plt.show()
@@ -139,9 +151,9 @@ def plot_figure(data: list):
 
 def main():
     """
-    The work flow:
+    The workflow:
         1. Grab the information from MDSTEPS.
-        2. Save the information as the .csv table format.
+        2. Save the information in the .csv table format.
         3. Plot figure if necessary.
 
     Returns
@@ -150,11 +162,11 @@ def main():
 
     """
     input_file, output_file, plot_fig = args.filename, args.output, args.plot
-    header_line, values = grab_info(input_file)
+    header_line, values, aveTemp = parse_MDSTEPS(input_file)
     write_file(header_line, values, output_file)
 
     if plot_fig.lower() in ["y", "yes"]:
-        plot_figure(values)
+        plot_figure(values, aveTemp)
 
 
 if __name__ == "__main__":
