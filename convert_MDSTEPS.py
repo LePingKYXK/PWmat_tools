@@ -10,10 +10,11 @@ from pathlib import Path
 parser = ap.ArgumentParser(add_help=True,
                            formatter_class=ap.ArgumentDefaultsHelpFormatter,
                            description="""
-                           Author:  Dr. Huan Wang,
-                           Email:   huan.wang@whut.edu.cn,
-                           Version: v1.0,
-                           Date:    August 12, 2024""")
+                           Author:   Dr. Huan Wang,
+                           Email:    huan.wang@whut.edu.cn,
+                           Version:  v1.0,
+                           Date:     August 12, 2024
+                           Modified: August 19, 2024""")
 parser.add_argument("-f", "--filename",
                     metavar="<PWmat MDSTEPS file>",
                     type=Path,
