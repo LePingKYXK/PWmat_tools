@@ -142,11 +142,11 @@ $ python check_rtTDDFT_Time.py
 ```python
 $ python check_rtTDDFT_Time.py -s 10  30.5  100.7  240
 ```
-即可得到 **atom_10.0fs.config**， **atom_30.5fs.config**，**atom_100.7fs.config**，and **atom_240.0fs.config** 等文件。
+即可得到 **atom_10.0fs.config**， **atom_30.5fs.config**，**atom_100.7fs.config**，**atom_240.0fs.config** 等文件。
 
 
 ## set_rtTDDFT_time.py
-`set_rtTDDFT_time.py` 脚本用于根据实验条件设置`TDDFT_TIME`的 $$b1,b2,b3,...,bN$$ 参数。仍在测试中。
+**仍在测试中** `set_rtTDDFT_time.py` 脚本用于根据实验条件设置`TDDFT_TIME`的 $b1, b2, b3, \dots, bN$ 参数。**仍在测试中**。
 
 
 ## num_excited_electrons.py
