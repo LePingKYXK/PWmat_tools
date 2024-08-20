@@ -89,8 +89,8 @@ Author: Dr. Huan Wang, Email: huan.wang@whut.edu.cn, Version: v1.0, Date: August
 
 optional arguments:
   -h, --help            show this help message and exit
-  -i <etot.input file>  you can specify the file name (default: /share/home/huan/scripts/etot.input)
-  -r <RELAXSTEPS file>  you can specify the file name (default: /share/home/huan/scripts/RELAXSTEPS)
+  -i <etot.input file>  you can specify the file name (default: ~/etot.input)
+  -r <RELAXSTEPS file>  you can specify the file name (default: ~/RELAXSTEPS)
   -p <plot graph>       plot graph (default: plot)
   -v, --verbose         verbose mode, show details of the RELAXSTEPS file (default: False)
 ```
