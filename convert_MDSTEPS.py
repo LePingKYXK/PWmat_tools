@@ -5,6 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 from pathlib import Path
+from matplotlib.gridspec import GridSpec
 
 
 parser = ap.ArgumentParser(add_help=True,
@@ -12,9 +13,9 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang,
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v1.1,
+                           Version:  v1.2,
                            Date:     August 12, 2024
-                           Modified: August 19, 2024""")
+                           Modified: August 22, 2024""")
 parser.add_argument("-f", "--filename",
                     metavar="<PWmat MDSTEPS file>",
                     type=Path,
@@ -112,39 +113,61 @@ def plot_figure(data: list, flag: str):
     """
 
     data = np.asfarray(data)
-    fig, axs = plt.subplots(2, 2, figsize=(16/2.54, 12/2.54))
+    time = data[:, 0]
+    Etot = data[:, 1]
+    Epot = data[:, 2]
+    Ekin = data[:, 3]
+
+    fig  = plt.figure(figsize=(8, 6))
+    gs = GridSpec(3, 2)
 
     # Panel 1, Time vs Total Energy
-    axs[0, 0].plot(data[:, 0], data[:, 1])
-    axs[0, 0].set_xlim([0, data[:, 0].max()])
-    axs[0, 0].set_xlabel('Time (fs)')
-    axs[0, 0].set_ylabel('Total Energy (eV)')
+    ax1 = plt.subplot(gs[0, 0])
+    ax1.plot(time, Etot, '-k', label='Total Energy')
+    ax1.set_xlim([0, time.max()])
+    ax1.set_xlabel('Time (fs)')
+    ax1.set_ylabel('Total Energy (eV)')
+    ax1.legend()
 
     # Panel 2, Time vs Potential Energy
-    axs[0, 1].plot(data[:, 0], data[:, 2])
-    axs[0, 1].set_xlim([0, data[:, 0].max()])
-    axs[0, 1].set_xlabel('Time (fs)')
-    axs[0, 1].set_ylabel('Potential Energy (eV)')
+    ax2 = plt.subplot(gs[0, 1])
+    ax2.plot(time, Epot, '-b', label='Potential Energy')
+    ax2.set_xlim([0, time.max()])
+    ax2.set_xlabel('Time (fs)')
+    ax2.set_ylabel('Potential Energy (eV)')
+    ax2.legend()
 
     # Panel 3, Time vs Kinetic Energy
-    axs[1, 0].plot(data[:, 0], data[:, 3])
-    axs[1, 0].set_xlim([0, data[:, 0].max()])
-    axs[1, 0].set_xlabel('Time (fs)')
-    axs[1, 0].set_ylabel('Kinetic Energy (eV)')
+    ax3 = plt.subplot(gs[1, 0])
+    ax3.plot(time, Ekin, '-r', label='Kinetic Energy')
+    ax3.set_xlim([0, time.max()])
+    ax3.set_xlabel('Time (fs)')
+    ax3.set_ylabel('Kinetic Energy (eV)')
+    ax3.legend()
 
-    # Panel 4, Time vs (average) Temperature
+    # Panel 4, Time vs All Energies
+    ax4 = plt.subplot(gs[1, 1])
+    ax4.scatter(time, Etot, alpha=0.2, label='Total Energy')
+    ax4.plot(time, Epot, '-b', label='Potential Energy')
+    ax4.plot(time, Ekin, '-r', label='Kinetic Energy')
+    ax4.set_xlim([0, time.max()])
+    ax4.set_xlabel('Time (fs)')
+    ax4.set_ylabel('Energy (eV)')
+    ax4.legend()
+
+    # Panel 5, Time vs (average) Temperature
+    ax5 = plt.subplot(gs[2, :])
+    ax5.set_xlim([0, data[:, 0].max()])
+    ax5.set_xlabel('Time (fs)')
     if flag:
-        axs[1, 1].plot(data[:, 0], data[:, 5])
-        axs[1, 1].set_xlim([0, data[:, 0].max()])
-        axs[1, 1].set_ylim([0, data[:, 5].max()])
-        axs[1, 1].set_xlabel('Time (fs)')
-        axs[1, 1].set_ylabel('Average Temperature (K)')
+        ax5.plot(time, data[:, 5], '-k', label='Average Temperature')
+        ax5.set_ylim([0, data[:, 5].max()])
+        ax5.set_ylabel('Average Temperature (K)')
     else:
-        axs[1, 1].plot(data[:, 0], data[:, 4])
-        axs[1, 1].set_xlim([0, data[:, 0].max()])
-        axs[1, 1].set_ylim([0, data[:, 4].max()])
-        axs[1, 1].set_xlabel('Time (fs)')
-        axs[1, 1].set_ylabel('Temperature (K)')
+        ax5.plot(time, data[:, 4], '-k', label='Temperature')
+        ax5.set_ylim([0, data[:, 4].max()])
+        ax5.set_ylabel('Temperature (K)')
+    ax5.legend()
 
     plt.tight_layout()
     plt.show()
