@@ -91,7 +91,7 @@ optional arguments:
   -h, --help            show this help message and exit
   -i <etot.input file>  you can specify the file name (default: ~/etot.input)
   -r <RELAXSTEPS file>  you can specify the file name (default: ~/RELAXSTEPS)
-  -p <plot graph>       plot graph (default: plot)
+  -p <plot graph>       plot graph (default: yes)
   -v, --verbose         verbose mode, show details of the RELAXSTEPS file (default: False)
 ```
 
