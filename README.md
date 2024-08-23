@@ -80,7 +80,7 @@ $ python num_excited_electrons.py
 # PWmat_tools 简介
 **PWmat_tools**系列脚本用于处理**PWmat**计算的结果文件。这些脚本以`Python3`语言编写，调用了`Numpy`，`Scipy`，`Matplotlib`等库，因此建议使用`Anaconda3`套件来管理和运行这些脚本。
 
-所有的脚本均有说明文档，可以通过 `-h` 开查看具体的说明。例如：
+所有的脚本均有说明文档，可以通过 `-h` 查看具体的说明。例如：
 ```python
 $ python check_PWmat_convergence.py -h
 usage: check_PWmat_convergence.py [-h] [-i <etot.input file>] [-r <RELAXSTEPS file>] [-p <plot graph>] [-v]
