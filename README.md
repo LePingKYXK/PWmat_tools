@@ -136,7 +136,7 @@ $ python check_rtTDDFT_Time.py
 
 
 ## split_MOVEMENT.py
-`split_MOVEMENT.py` 脚本用于**读取PWmat在rt-TDDFT计算中产生的的MOVEMENT文件**。由于后续处理时需要计算某些时刻的态密度（DOS），因此开发了此拆分脚本。`split_MOVEMENT.py`脚本可以按照使用者输入的时刻迅速将将`MOVEMENT`文件拆分成若干个`atom_XXXfs.config`文件。
+`split_MOVEMENT.py` 脚本用于**读取PWmat在rt-TDDFT计算中产生的的MOVEMENT文件**。由于后续处理时需要计算某些时刻的态密度（DOS），因此开发了此拆分脚本。`split_MOVEMENT.py`脚本可以按照使用者输入的时刻迅速将`MOVEMENT`文件拆分成若干个`atom_XXXfs.config`文件。
 
 使用方法：
 ```python
