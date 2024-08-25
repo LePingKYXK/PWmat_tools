@@ -96,15 +96,15 @@ def main():
     (2) save the specific coordinates into atom_(*)fs.config file(s).
     '''
     inputfile, fs_list = args.filename, args.steps
+        
+    if not fs_list:
+        print("\nPlease provide (at least one) specific times, separating by space. (for example: -s 10 20.5 32.6)\n")
+        exit()
     
     try:
         configure = read_data(inputfile, fs_list)
     except FileNotFoundError:
         print("\nThe MOVEMENT file does NOT exist!\n")
-        exit()
-
-    if not fs_list:
-        print("\nPlease provide (at least one) specific times, separating by space. (for example: -s 10 20.5 32.6)\n")
         exit()
 
     save_atom_config(configure, fs_list)
