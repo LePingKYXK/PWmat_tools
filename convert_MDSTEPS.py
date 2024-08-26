@@ -129,6 +129,7 @@ def plot_figure(data: list, flag: str):
     data = np.asfarray(data)
     time = data[:, 0]
     labels = ['Total Energy', 'Potential Energy', 'Kinetic Energy']
+    colors = ['-k', '-b', '-r']
 
     fig  = plt.figure(figsize=(8, 6))
     gs = GridSpec(3, 2)
