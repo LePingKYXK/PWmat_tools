@@ -37,7 +37,7 @@ parser.add_argument("-p", "--plot",
 args = parser.parse_args()
 
 
-def read_info(filename: Path) -> list:
+def parse_etot_input(filename: Path) -> list:
     """
     This function reads the etot.input (or REPORT) file and parses the TDDFT_TIME and MD_DETAIL parameters.
 
@@ -69,11 +69,20 @@ def read_info(filename: Path) -> list:
     return td_val, md_val
 
 
+def parse_IN_TDDFT(path_to_file: Path):
+    """
+    """
+    try:
+        return np.genfromtxt(path_to_file)
+    except FileNotFoundError:
+        raise FileNotFoundError("The IN.TDDFT_TIME file does NOT found!")
+
+
 def integrate_tddft_time(t, b1, b2, b3, b4, b5):
     return b1 * np.exp(-np.square((t - b2) / b3)) * np.sin(b4 * t + b5)
 
 
-def tddft(data_td: list, data_md: list) -> np.array:
+def ftddft(data_td: list, data_md: list, f=None) -> np.array:
     """
     This function calculates the time dependent laser energy (in unit of eV),
     t vs eV.
@@ -85,7 +94,9 @@ def tddft(data_td: list, data_md: list) -> np.array:
         A list contains TDDFT_TIME parameters.
     data_md : list
         A list contains MD_DETIAL parameters.
-
+    f : Path
+        Path to the file of IN.TDDFT_TIME.
+        
     Returns
     -------
     data : Numpy 2D-array.
@@ -97,22 +108,28 @@ def tddft(data_td: list, data_md: list) -> np.array:
 
     time_arr = np.linspace(0, int(md_step) * del_t, int(md_step) + 1)
 
-    if td_type == 2:
-        tddft = b1 * np.exp(-np.square((time_arr - b2) / b3)) * np.sin(b4 * time_arr + b5)
-        data = np.column_stack((time_arr, tddft))
+    if td_type == 1:
+        return parse_IN_TDDFT(f)
 
-    elif td_type == 22:
-        #t_values = np.arange(0, md_step + del_t, del_t)
-        tddft = np.zeros_like(time_arr)
+    elif td_type in [0, 2, 22]:
+        if td_type == 0:
+            ftddft = np.ones(time_arr.size)
 
-        for i, t in enumerate(time_arr):
-            tddft[i], _ = quad(integrate_tddft_time, t, t + del_t, args=(b1, b2, b3, b4, b5))
-        data = np.column_stack((time_arr, tddft))
-#    print(f"td: {tddft}\nsize:{tddft.size}")
+        elif td_type == 2:
+            ftddft = b1 * np.exp(-np.square((time_arr - b2) / b3)) * np.sin(b4 * time_arr + b5)
 
-    np.savetxt(Path.cwd() / "tddft_time.txt", data,
-               fmt=("%10.6e", "%10.8e"), delimiter='\t', header='Time\tTDDFT(t)')
-    return data
+        elif td_type == 22:
+            integrate_func_vec = np.vectorize(integrate_tddft_time)
+            ftddft = integrate_func_vec(time_arr, b1, b2, b3, b4, b5)
+
+        data = np.column_stack((time_arr, ftddft))
+        np.savetxt(Path.cwd() / "tddft_time.txt", data,
+                   fmt=("%10.6e", "%10.8e"), delimiter='\t', header='Time\tTDDFT(t)')
+
+        return data
+
+    else:
+        raise ValueError("Unsupported td_type value. Supported values are 0, 1, 2, or 22.")
 
 
 def plot_figure(data: np.array):
@@ -150,11 +167,11 @@ def main():
     """
 
     etot_input, plot_fig = args.filename, args.plot
-    data_td, data_md = read_info(etot_input)
+    data_td, data_md = parse_etot_input(etot_input)
     print(f"\nTDDFT_Time: {data_td},\nMD_Detail: {data_md}\n")
     itemtype, n, b1, b2, b3, b4, b5 = data_td
 
-    td = tddft(data_td, data_md)
+    td = ftddft(data_td, data_md)
 
     E_laser      = pc.hbar * b4 / pc.femto / pc.e  # in unit of eV
     lambda_laser = 2 * np.pi * pc.c * pc.giga * pc.femto / b4  # in unit of nm
