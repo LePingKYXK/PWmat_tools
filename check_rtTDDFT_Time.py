@@ -8,20 +8,21 @@ import scipy.constants as pc
 from scipy.integrate import quad
 from pathlib import Path
 
-
+"""
 pc.c        # speed of light = 299792458.0 m s^(-1)
 pc.e        # charge of electron = 1.602176634e-19 C
 pc.hbar     # Plancck constant / 2pi = 1.0545718176461565e-34 J s
 pc.femto    # femto = 10^(-15)
-
+"""
 
 parser = ap.ArgumentParser(add_help=True,
                            formatter_class=ap.ArgumentDefaultsHelpFormatter,
                            description="""
                            Author:   Dr. Huan Wang,
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v1.0,
-                           Created:  August 08, 2024""")
+                           Version:  v1.1,
+                           Created:  August 08, 2024
+                           Modified: August 26, 2024 """)
 parser.add_argument("-f", "--filename",
                     metavar="<The TDDFT input>",
                     type=Path,
