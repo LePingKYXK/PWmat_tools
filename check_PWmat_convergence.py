@@ -9,9 +9,9 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang, 
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v2.0,
+                           Version:  v2.1,
                            Date:     August 7, 2024
-                           Modified: August 16, 2024""")
+                           Modified: August 27, 2024""")
 parser.add_argument("-i",
                     metavar="<etot.input file>",
                     type=Path,
@@ -49,24 +49,21 @@ def read_etot_input(filename: Path) -> int and str:
 
     Returns
     -------
-    len(info) : int
+    len(relaxation) : int
         The length of the parameters of RELAX_DETAIL.
-    dft : str
+    functional : str
         The functional used in the current calculation.
     """
     
-    dft = "PBE"
+    functional = "PBE"
     with open(filename, "r") as fo:
         for line in fo:
-            functional = re.search(r"XCFUNCTIONAL\s+=\s+(\w+)", line, re.IGNORECASE)
-            relaxation = re.findall(r"RELAX_DETAIL\s+=\s+(.*)", line, re.IGNORECASE)
-            
-            if functional:
-                dft = functional.group(1)
-            if relaxation:
-                info = relaxation[0].split()
-                
-    return len(info), dft
+            xc = re.search(r"XCFUNCTIONAL\s+=\s+(\w+)", line, re.IGNORECASE):
+            if xc:
+                functional = xc.group(1)
+            if re.search(r"RELAX_DETAIL", line, re.IGNORECASE):
+                relaxation = re.findall(r"\d+\.\d"+|\d+", line)               
+    return len(relaxation), functional
 
 
 def read_relaxsteps(filename: Path, dft: str) -> list:
@@ -178,22 +175,22 @@ def main():
         print('\n'.join((drawline, "The optimization job is NOT yet complete!", drawline)))
 
     if args.verbose:
-        if criteria > 3:
+        if criteria == 5:
             print(tfmt_cell.format(*title_cell))
             for item in info:
                 print(ifmt_cell.format(*item))
             plot_deltE_deltF(np.array(info).reshape(-1, 14))
 
-        elif criteria <= 3:
+        elif criteria == 3:
             print(tfmt_ion.format(*title_ion))
             for item in info:
                 print(ifmt_ion.format(*item))
             plot_deltE_deltF(np.array(info).reshape(-1, 12))
 
     else:
-        if criteria > 3:
+        if criteria == 5:
             plot_deltE_deltF(np.array(info).reshape(-1, 14))
-        elif criteria <= 3:
+        elif criteria == 3:
             plot_deltE_deltF(np.array(info).reshape(-1, 12))
 
 
