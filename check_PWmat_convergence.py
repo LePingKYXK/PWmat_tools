@@ -58,8 +58,8 @@ def read_etot_input(filename: Path) -> int and str:
     dft = "PBE"
     with open(filename, "r") as fo:
         for line in fo:
-            functional = re.search(r"XCFUNCTIONAL\s+=\s+(\w+)", line)
-            relaxation = re.findall(r"RELAX_DETAIL\s+=\s+(.*)", line)
+            functional = re.search(r"XCFUNCTIONAL\s+=\s+(\w+)", line, re.IGNORECASE)
+            relaxation = re.findall(r"RELAX_DETAIL\s+=\s+(.*)", line, re.IGNORECASE)
             
             if functional:
                 dft = functional.group(1)
