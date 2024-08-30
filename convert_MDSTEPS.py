@@ -13,9 +13,9 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang,
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v1.3,
+                           Version:  v1.4,
                            Date:     August 12, 2024
-                           Modified: August 26, 2024""")
+                           Modified: August 30, 2024""")
 parser.add_argument("-f", "--filename",
                     metavar="<PWmat MDSTEPS file>",
                     type=Path,
@@ -97,7 +97,7 @@ def write_file(header_line: list, data: list, filename: Path):
         csv_writer.writerows(data)
 
 
-def plot_energy_vs_time(x, y, label, color, ax):
+def plot_variable_vs_time(x, y, label, color, ax):
     """
     Helper function to plot Total Energy, Potential Energy, and Kinetic vs time.
     """
@@ -128,36 +128,36 @@ def plot_figure(data: list, flag: str):
 
     data = np.asfarray(data)
     time = data[:, 0]
-    labels = ['Total Energy', 'Potential Energy', 'Kinetic Energy']
+    label1 = ['Total Energy', 'Potential Energy', 'Kinetic Energy']
+    label2 = ['$\\Delta$ Total Energy', '$\\Delta$ Potential Energy', '$\\Delta$ Kinetic Energy']
     colors = ['-k', '-b', '-r']
 
-    fig  = plt.figure(figsize=(8, 6))
-    gs = GridSpec(3, 2)
+    fig  = plt.figure(figsize=(8, 8))
+    gs = GridSpec(4, 2)
 
     # Panel 1 to 3 (Total Energy, Potential Energy, and Kinetic vs time)
     for i, (label, color) in enumerate(zip(labels, colors)):
         ax = plt.subplot(gs[i//2, i%2])
-        plot_energy_vs_time(time, data[:, i+1], label, color, ax)
+        plot_variable_vs_time(time, data[:, i+1], label, color, ax)
 
-    # Panel 4, Time vs All Energies
+    # Panel 4, Delta Energies vs Times
     ax4 = plt.subplot(gs[1, 1])
     for i, (label, color) in enumerate(zip(labels, colors)):
-        ax4.plot(time, data[:, i+1], color, label=label)
+#        ax4.plot(time, data[:, i+1], color, label=label)
+        ax4.plot(time[1:], np.diff(data[:, i+1]), color, label=label)
     ax4.set_xlim([0, time.max()])
     ax4.set_xlabel('Time (fs)')
-    ax4.set_ylabel('Energy (eV)')
+#    ax4.set_ylabel('Energy (eV)')
+    ax4.set_ylabel('$\\Delta$ Energy (eV)')
     ax4.legend()
 
-    # Panel 5, Time vs (average) Temperature
-    ax5 = plt.subplot(gs[2, :])
-    temp_index = 5 if flag else 4
-    ax5.plot(time, data[:, temp_index], '-k', label='Average Temperature' if flag else 'Temperature')
-    ax5.set_xlim([0, time.max()])
-    ax5.set_xlabel('Time (fs)')
-    ax5.set_ylabel('Temperature (K)')
-    ax5.legend()
+    # Panel 5and 6, (average) Temperature vs Time and SCF loops vs Time
+    for i, (tag, label) in enumerate([(5 if flag else 4, 'Average Temperature' if flag else 'Temperature'),
+                                      (8 if flag else 7, 'SCF loops')]):
+        ax = fig.add_subplot(gs[2+i, :])
+        plot_variable_vs_time(time, data[:, tag], '-k', label, ax)
 
-    plt.tight_layout()
+    fig.tight_layout()
     plt.show()
 
 
