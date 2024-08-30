@@ -97,7 +97,7 @@ def write_file(header_line: list, data: list, filename: Path):
         csv_writer.writerows(data)
 
 
-def plot_variable_vs_time(x, y, label, color, ax):
+def plot_variable_vs_time(x, y, color, label, ax):
     """
     Helper function to plot Total Energy, Potential Energy, and Kinetic vs time.
     """
@@ -136,13 +136,13 @@ def plot_figure(data: list, flag: str):
     gs = GridSpec(4, 2)
 
     # Panel 1 to 3 (Total Energy, Potential Energy, and Kinetic vs time)
-    for i, (label, color) in enumerate(zip(labels, colors)):
+    for i, (label, color) in enumerate(zip(label1, colors)):
         ax = plt.subplot(gs[i//2, i%2])
-        plot_variable_vs_time(time, data[:, i+1], label, color, ax)
+        plot_variable_vs_time(time, data[:, i+1], color, label, ax)
 
     # Panel 4, Delta Energies vs Times
     ax4 = plt.subplot(gs[1, 1])
-    for i, (label, color) in enumerate(zip(labels, colors)):
+    for i, (label, color) in enumerate(zip(label2, colors)):
 #        ax4.plot(time, data[:, i+1], color, label=label)
         ax4.plot(time[1:], np.diff(data[:, i+1]), color, label=label)
     ax4.set_xlim([0, time.max()])
