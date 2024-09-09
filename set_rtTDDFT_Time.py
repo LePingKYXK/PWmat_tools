@@ -52,6 +52,11 @@ parser.add_argument("-p", "--power",
                     type=float,
                     help="The average power of laser pulse, in unit of mW",
                     )
+parser.add_argument("-e", "--energy",
+                    metavar="<laser pulse energy>",
+                    type=float,
+                    help="The energy of laser pulse, in unit of mJ",
+                    )
 parser.add_argument("-r", "--repetition",
                     metavar="<repetition rate>",
                     type=float,
