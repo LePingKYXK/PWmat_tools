@@ -96,7 +96,7 @@ def calculate_fluence(power, energy, time, repetition_rate, diameter):
     rate_in_Hz = repetition_rate * pc.kilo
     if power:
         power_in_W = (power * pc.milli)
-        fluence_1photon = power_in_W / (pc.pi * (diameter_in_m / 2) **2) * rate_in_Hz
+        fluence_1photon = power_in_W / (pc.pi * (diameter_in_m / 2) **2)
         return fluence_1photon
 
     elif energy:
