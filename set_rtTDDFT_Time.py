@@ -269,7 +269,7 @@ def main():
     t0, t = get_time(sigma, dt)
     fluence = calculate_fluence(power, energy, t, repetition_rate, diameter)
 
-    b1 = fluence_to_b1(itype, fluence, E0_in_VA, au_to_fs)
+    b1 = fluence_to_b1(itype, fluence, E0_in_VA, au_to_fs) / (1/(sigma * np.sqrt(2 * np.pi))) ## here divided the area of the Gaussian profile.
     b2 = t0
     b3 = np.sqrt(2) * sigma
     b4 = 2 * np.pi * pc.c * pc.giga * pc.femto / wavelength
