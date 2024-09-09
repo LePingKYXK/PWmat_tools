@@ -61,6 +61,7 @@ parser.add_argument("-r", "--repetition",
                     metavar="<repetition rate>",
                     type=float,
                     help="The repetition rate of laser pulse, in unit of kHz",
+                    default=0.001,
                     )
 parser.add_argument("-D", "--diameter",
                     metavar="<diameter>",
