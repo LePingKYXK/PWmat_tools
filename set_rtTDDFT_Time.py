@@ -87,11 +87,45 @@ args = parser.parse_args()
 
 
 def calculate_photon_energy(wavelength):
+    """
+    This function calculates the photon energy from the wavelength.
+
+    Parameters
+    ----------
+    wavelength : float
+        The wavelength of the laser pulse, in the unit of nm.
+
+    Returns
+    -------
+    energy : float
+        The photon energy, in the unit of J.
+    """
     energy = pc.h * pc.c / (wavelength * pc.nano)
     return energy / pc.e
 
 
 def calculate_fluence(power, energy, time, repetition_rate, diameter):
+    """
+    This function calculates the fluence of the laser pulse.
+
+    Parameters
+    ----------
+    power : float
+        The average power of laser pulse, in the unit of mW.
+    energy : float
+        The energy of laser pulse, in the unit of mJ.
+    time : np.array
+        The 1d-array contains the time of laser pulse, in the unit of fs.
+    repetition_rate : float
+        The repetition rate of laser pulse, in the unit of kHz.
+    diameter : float
+        The diameter of laser pulse, in the unit of micron.
+
+    Returns
+    -------
+    fluence : np.array
+        The 1d-array contains the fluence of the laser pulse, in the unit of W/m^2
+    """
     diameter_in_m = diameter * pc.micro
     rate_in_Hz = repetition_rate * pc.kilo
     if power:
@@ -125,7 +159,7 @@ def fluence_to_b1(itype, fluence, E0_in_VA, au_to_fs):
     itype : int
         The type of rt-TDDFT time for calculation, (can be 2, 22)
     fluence : float
-        The laser fluence, in unit of W/m^2
+        The laser fluence, in the unit of W/m^2
     E0_in_VA : float
         The conversion factor of energy, (Hartree/Bohr to Volts/angstrom)
     au_to_fs : float
@@ -143,7 +177,7 @@ def fluence_to_b1(itype, fluence, E0_in_VA, au_to_fs):
         return b1 / au_to_fs
 
 
-def get_sigma(FWHM):
+def calculate_sigma(FWHM):
     """
     This relationship between the full width half maximum (FWHM) and 
     the standard deviation (sigma) of a Gaussian function profile is:
@@ -154,7 +188,7 @@ def get_sigma(FWHM):
     Parameters
     ----------
     FWHM : float
-        The full width half maximum of laser fluence, in unit of fs
+        The full width half maximum of laser fluence, in the unit of fs
 
     Returns
     -------
@@ -168,7 +202,24 @@ def get_sigma(FWHM):
         return None
 
 
-def get_time(sigma, dt):
+def calculate_time(sigma, dt):
+    """
+    This function calculates the sigma and time array for the laser pulse.
+
+    Parameters
+    ----------
+    sigma : float
+        The standard deviation of Gaussian function.
+    dt : float
+        The time step of rt-TDDFT calculation, in unit of fs
+
+    Returns
+    -------
+    t0 : float
+        The time of laser pulse center, in unit of fs.
+    t : np.array
+        The 1d-array contains the time of laser pulse, in unit of fs.
+    """
     if sigma:
         t = 6 * sigma / 0.997
         t0 = t / 2
@@ -177,7 +228,36 @@ def get_time(sigma, dt):
         return None
 
 
-def get_laser_pulse(itype, E0, t0, sigma, omega, phi, t, dt):
+def generate_laser_pulse(itype, E0, t0, sigma, omega, phi, t, dt):
+    """
+    This function calculates the laser pulse shape.
+
+    Parameters
+    ----------
+    itype : int
+        The type of rt-TDDFT time for calculation, (can be 2, 22)
+    E0 : float
+        The PWmat rt-TDDFT parameter b1.
+    t0 : float
+        The time of laser pulse center, in the unit of fs.
+    sigma : float
+        The standard deviation of the Gaussian function.
+    omega : float
+        The angular frequency of laser pulse, in the unit of rad/fs.
+    phi : float
+        The phase of the laser pulse, in the unit of rad.
+    t : np.array
+        The 1d-array contains the time of laser pulse, in the unit of fs.
+    dt : float
+        The time step of rt-TDDFT calculation, in the unit of fs.
+    
+    Returns
+    -------
+    t : np.array
+        The 1d-array contains the time of laser pulse, in the unit of fs.
+    f_rttddft : np.array
+        The 1d-array contains the laser pulse shape, in the unit of V/angstrom or a.u.
+    """
 #    y = E0 * (1/(np.sqrt(2*np.pi) * sigma)) * np.sin(omega * t + phi) * np.exp(-(t - t0) ** 2 / (2 * sigma ** 2))
     y = E0 * np.sin(omega * t + phi) * np.exp(-(t - t0) ** 2 / (2 * sigma ** 2))
     y_cum = dt * np.cumsum(y)
@@ -188,6 +268,27 @@ def get_laser_pulse(itype, E0, t0, sigma, omega, phi, t, dt):
 
 
 def count_non_empty_vars(b1, b2, b3, b4, b5):
+    """
+    This function counts the number of non-empty variables.
+
+    Parameters
+    ----------
+    b1 : float
+        The PWmat rt-TDDFT parameter b1.
+    b2 : float
+        The PWmat rt-TDDFT parameter b2.
+    b3 : float
+        The PWmat rt-TDDFT parameter b3.
+    b4 : float
+        The PWmat rt-TDDFT parameter b4.
+    b5 : float
+        The PWmat rt-TDDFT parameter b5.
+
+    Returns
+    -------
+    count : int
+        The number of non-empty variables.
+    """
     count = sum(1 for var in (b1, b2, b3, b4, b5) if var)  # count non-empty variables
     if count == 5:  # if all variables are non-empty
         return count
@@ -197,12 +298,48 @@ def count_non_empty_vars(b1, b2, b3, b4, b5):
 
 def save_to_file(x, y, filename='IN.TDDFT_TIME'):
     """
+    This function saves the data to the "IN.TDDFT_TIME" file.
+
+    Parameters
+    ----------
+    x : np.array
+        The 1d-array contains the time of laser pulse, in the unit of fs.
+    y : np.array
+        The 1d-array contains the laser pulse shape, in the unit of V/angstrom or a.u.
+    filename : str, optional
+        The name of the file to save the data. The default is 'IN.TDDFT_TIME'.
+
+    Returns
+    -------
+    None.
     """
     data = np.column_stack((x, y))
     np.savetxt(Path.cwd() / filename, data, fmt="%15.10f", delimiter="   ")
 
 
 def plot_subplot(ax, time, data, label, title, ylabel):
+    """
+    This function supports the plot_figure function to plot the data in a subplot.
+
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        The subplot to plot the data.
+    time : np.array
+        The 1d-array contains the time of laser pulse, in the unit of fs.
+    data : np.array
+        The 1d-array contains the laser pulse shape, in the unit of V/angstrom or a.u.
+    label : str
+        The label of the data.
+    title : str
+        The title of the subplot.
+    ylabel : str
+        The Y-axis label of the subplot.
+
+    Returns
+    -------
+    None.
+    """
     ax.plot(time, data, label=label)
     ax.set_title(title)
     ax.set_xlim(0, time.max())
@@ -215,22 +352,40 @@ def plot_subplot(ax, time, data, label, title, ylabel):
     ax.grid(True)
 
 
-def plot_figure(time, frttddft, E0_in_VA, flag):
+def plot_figure(time, f_rttddft, E0_in_VA, flag):
+    """
+    This function plots the laser pulse shape and the TDDFT_TIME.
+
+    Parameters
+    ----------
+    time : np.array
+        The 1d-array contains the time of laser pulse, in the unit of fs.
+    f_rttddft : np.array
+        The 1d-array contains the laser pulse shape, in the unit of V/angstrom or a.u.
+    E0_in_VA : float
+        The conversion factor of energy, (Hartree/Bohr to Volts/angstrom)
+    flag : int
+        The type of rt-TDDFT time for calculation, (can be 2, 22)
+    
+    Returns
+    -------
+    None.
+    """
     fig, axs = plt.subplots(2, 1, figsize=(12, 6))
 
     if flag == 2:
-        plot_subplot(axs[0], time, frttddft * E0_in_VA, 'E(t)', 'Field in length gauge', 'E(t) (V/Ang)')
-        plot_subplot(axs[1], time, frttddft, 'E(t)', 'TDDFT_TIME in length gauge', 'TDDFT_TIME (a.u.)')
+        plot_subplot(axs[0], time, f_rttddft * E0_in_VA, 'E(t)', 'Field in length gauge', 'E(t) (V/Ang)')
+        plot_subplot(axs[1], time, f_rttddft, 'E(t)', 'TDDFT_TIME in length gauge', 'TDDFT_TIME (a.u.)')
     elif flag == 22:
-        plot_subplot(axs[0], time, frttddft * (-1), 'A(t)/c', 'Field in velocity gauge', 'A(t)/c (a.u.)')
-        plot_subplot(axs[1], time, frttddft, 'E(t)', 'TDDFT_TIME in velocity gauge', 'TDDFT_TIME (a.u.)')
+        plot_subplot(axs[0], time, f_rttddft * (-1), 'A(t)/c', 'Field in velocity gauge', 'A(t)/c (a.u.)')
+        plot_subplot(axs[1], time, f_rttddft, 'E(t)', 'TDDFT_TIME in velocity gauge', 'TDDFT_TIME (a.u.)')
 
     plt.tight_layout()
     plt.savefig('TIME')
     plt.show()
 
 
-def print_to_screen(wavelength, E_photon, power,fluence, energy, b1, b2, b3, b4, b5, t0, fwhm, itype, num):
+def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, fwhm, itype, num):
     draw_dline = "=" * 79
     draw_sline = "-" * 79
     print("".join(("\n", draw_dline)))
@@ -265,8 +420,8 @@ def main():
     au_to_fs = pc.value("reduced Planck constant in eV s") / pc.value("Hartree energy in eV") / pc.femto
 
     E_photon = calculate_photon_energy(wavelength)
-    sigma = get_sigma(fwhm)
-    t0, t = get_time(sigma, dt)
+    sigma = calculate_sigma(fwhm)
+    t0, t = calculate_time(sigma, dt)
     fluence = calculate_fluence(power, energy, t, repetition_rate, diameter)
 
     b1 = fluence_to_b1(itype, fluence, E0_in_VA, au_to_fs) / (1/(sigma * np.sqrt(2 * np.pi))) ## here divided the area of the Gaussian profile.
@@ -277,10 +432,10 @@ def main():
 
     num = count_non_empty_vars(b1, b2, b3, b4, b5)
     if num:
-        time, frttddft = get_laser_pulse(itype, b1, b2, sigma, b4, b5, t, dt)
+        time, f_rttddft = generate_laser_pulse(itype, b1, b2, sigma, b4, b5, t, dt)
         print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, fwhm, itype, num)
-        save_to_file(time, frttddft, filename='IN.TDDFT_TIME')
-        plot_figure(time, frttddft, E0_in_VA, itype)
+        save_to_file(time, f_rttddft, filename='IN.TDDFT_TIME')
+        plot_figure(time, f_rttddft, E0_in_VA, itype)
     else:
         print("Please check your input parameters!")
 
