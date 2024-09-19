@@ -15,7 +15,7 @@ parser = ap.ArgumentParser(add_help=True,
                            Email:    huan.wang@whut.edu.cn,
                            Version:  v1.4,
                            Date:     August 12, 2024
-                           Modified: August 30, 2024""")
+                           Modified: September 19, 2024""")
 parser.add_argument("-f", "--filename",
                     metavar="<PWmat MDSTEPS file>",
                     type=Path,
@@ -135,7 +135,7 @@ def plot_figure(data: list, flag: str):
     fig  = plt.figure(figsize=(8, 8))
     gs = GridSpec(4, 2)
 
-    # Panel 1 to 3 (Total Energy, Potential Energy, and Kinetic vs time)
+    # Panel 1 to 3, (Total Energy, Potential Energy, and Kinetic vs time)
     for i, (label, color) in enumerate(zip(label1, colors)):
         ax = plt.subplot(gs[i//2, i%2])
         plot_variable_vs_time(time, data[:, i+1], color, label, ax)
@@ -143,17 +143,15 @@ def plot_figure(data: list, flag: str):
     # Panel 4, Delta Energies vs Times
     ax4 = plt.subplot(gs[1, 1])
     for i, (label, color) in enumerate(zip(label2, colors)):
-#        ax4.plot(time, data[:, i+1], color, label=label)
         ax4.plot(time[1:], np.diff(data[:, i+1]), color, label=label)
     ax4.set_xlim([0, time.max()])
     ax4.set_xlabel('Time (fs)')
-#    ax4.set_ylabel('Energy (eV)')
     ax4.set_ylabel('$\\Delta$ Energy (eV)')
     ax4.legend()
 
-    # Panel 5and 6, (average) Temperature vs Time and SCF loops vs Time
+    # Panel 5 and 6, (average) Temperature vs Time and SCF loops vs Time
     for i, (tag, label) in enumerate([(5 if flag else 4, 'Average Temperature' if flag else 'Temperature'),
-                                      (8 if flag else 7, 'SCF loops')]):
+                                      (8 if flag else 7, 'SCF Loops')]):
         ax = fig.add_subplot(gs[2+i, :])
         plot_variable_vs_time(time, data[:, tag], '-k', label, ax)
 
