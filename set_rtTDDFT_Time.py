@@ -457,7 +457,7 @@ def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4
     draw_dline = "=" * 79
     draw_sline = "-" * 79
     print("".join(("\n", draw_dline)))
-    print(f"The energy of laser with {wavelength} nm is: {E_photon} eV.")
+    print(f"The energy of laser with {wavelength} nm is: {E_photon:.2f} eV.")
     if power:
         print(f"b1 = {b1}, for the input laser fluence of {fluence:.2f} W/m^2 or {fluence * (pc.kilo / (pc.hecto) ** 2):.2f} mW/cm^2.")
     elif energy:
