@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.constants as pc
 from pathlib import Path
+from scipy.integrate import simps
+from scipy.optimize import minimize
 
 """
 https://docs.scipy.org/doc/scipy/reference/constants.html
@@ -33,9 +35,9 @@ parser = ap.ArgumentParser(add_help=True,
                     description="""
                     Author:   Dr. Huan Wang,
                     Email:    huan.wang@whut.edu.cn,
-                    Version:  v1.1,
+                    Version:  v1.2,
                     Date:     August 11, 2024,
-                    Modified: September 09, 2024""")
+                    Modified: September 19, 2024""")
 parser.add_argument("-t", "--type",
                     metavar="<itype_time>",
                     type=int,
@@ -45,43 +47,43 @@ parser.add_argument("-t", "--type",
 parser.add_argument("-l", "--wavelength",
                     metavar="<wavelength>",
                     type=float,
-                    help="The wavelength of laser pulse",
+                    help="The wavelength of the laser pulse, in the unit of nm",
                     )
 parser.add_argument("-p", "--power",
                     metavar="<average power>",
                     type=float,
-                    help="The average power of laser pulse, in unit of mW",
+                    help="The average power of laser pulse, in the unit of mW",
                     )
 parser.add_argument("-e", "--energy",
                     metavar="<laser pulse energy>",
                     type=float,
-                    help="The energy of laser pulse, in unit of mJ",
+                    help="The energy of laser pulse, in the unit of mJ",
                     )
 parser.add_argument("-r", "--repetition",
                     metavar="<repetition rate>",
                     type=float,
-                    help="The repetition rate of laser pulse, in unit of kHz",
+                    help="The repetition rate of the laser pulse, in the unit of kHz",
                     default=0.001,
                     )
 parser.add_argument("-D", "--diameter",
                     metavar="<diameter>",
                     type=float,
-                    help="The diameter of laser pulse, in unit of micron",
+                    help="The diameter of the laser pulse, in the unit of micron",
                     )
 parser.add_argument("-c", "--center",
                     metavar="<peak center>",
                     type=float,
-                    help="The peak center of laser pulse, in unit of fs",
+                    help="The peak center of the laser pulse, in the unit of fs",
                     )
 parser.add_argument("-w", "--fwhm",
                     metavar="<FWHM>",
                     type=float,
-                    help="The Full width half maximum of laser pulse (some times we called the pulse duration)",
+                    help="The Full width half maximum of the laser pulse (sometimes we call the pulse duration), in the unit of fs",
                     )
 parser.add_argument("-dt", "--time_step",
                     metavar="<time step>",
                     type=float,
-                    help="The time step of rt-TDDFT calculation, in unit of fs",
+                    help="The time step of rt-TDDFT calculation, in the unit of fs",
                     )
 args = parser.parse_args()
 
@@ -113,13 +115,13 @@ def calculate_fluence(power, energy, time, repetition_rate, diameter):
     power : float
         The average power of laser pulse, in the unit of mW.
     energy : float
-        The energy of laser pulse, in the unit of mJ.
+        The energy of the laser pulse, in the unit of mJ.
     time : np.array
         The 1d-array contains the time of laser pulse, in the unit of fs.
     repetition_rate : float
         The repetition rate of laser pulse, in the unit of kHz.
     diameter : float
-        The diameter of laser pulse, in the unit of micron.
+        The diameter of the laser pulse, in the unit of micron.
 
     Returns
     -------
@@ -140,10 +142,10 @@ def calculate_fluence(power, energy, time, repetition_rate, diameter):
         return fluence_average
 
 
-def fluence_to_b1(itype, fluence, E0_in_VA, au_to_fs):
+def unit_conversion_fluence(itype: int, fluence: float, E0_in_VA: float, au_to_fs: float) -> float:
     """
-    This function deals with the conversion between fluence and parameter b1.
-    The unit of fluence in W/m^2, and the unit of b1 is Hartree/Bohr.
+    This function deals with the unit conversion of fluence.
+    The unit of fluence is W/m^2, and the unit of E0 is Hartree/Bohr.
 
     ===========================================================================
     x = "what you want to set"
@@ -151,7 +153,7 @@ def fluence_to_b1(itype, fluence, E0_in_VA, au_to_fs):
     I = np.sqare(E) * pc.epsilon_0 * pc.c / 2 # W/m^2
     W_per_m2_to_mW_per_cm2 = pc.kilo / pc.hecto ** 2
 
-    J in unit of W/m^2
+    fluence in unit of W/m^2
     ===========================================================================
 
     Parameters
@@ -167,14 +169,14 @@ def fluence_to_b1(itype, fluence, E0_in_VA, au_to_fs):
 
     Returns
     -------
-    b1 : float
+    E0 : float
         The PWmat rt-TDDFT parameter b1.
     """
-    b1 = np.sqrt(2 * fluence / (pc.epsilon_0 * pc.c)) * pc.angstrom / E0_in_VA
+    E0 = np.sqrt(2 * fluence / (pc.epsilon_0 * pc.c)) * pc.angstrom / E0_in_VA
     if itype == 2:
-        return b1
+        return E0
     elif itype == 22:
-        return b1 / au_to_fs
+        return E0 / au_to_fs
 
 
 def calculate_sigma(FWHM):
@@ -228,7 +230,73 @@ def calculate_time(sigma, dt):
         return None
 
 
-def generate_laser_pulse(itype, E0, t0, sigma, omega, phi, t, dt):
+def integrand(t: np.array, b1: float, b2: float, b3: float, b4: float, b5: float):
+    """
+    This function generates the integrand of the laser pulse shape, which is 
+    a product of a Gaussian function multiplied by a sine function.
+    
+    Parameters
+    ----------
+    t : np.array
+        The 1d-array contains the time of the laser pulse, in the unit of fs.
+    b1 : float
+        The PWmat rt-TDDFT parameter b1.
+    b2 : float
+        The PWmat rt-TDDFT parameter b2.
+    b3 : float
+        The PWmat rt-TDDFT parameter b3.
+    b4 : float
+        The PWmat rt-TDDFT parameter b4.
+    b5 : float
+        The PWmat rt-TDDFT parameter b5.
+
+    Returns
+    -------
+    integrand : np.array
+        The 1d-array contains the integrand of the laser pulse shape.
+
+    """    
+    gaussian = b1 * np.exp(-((t - b2)**2) / (2 * b3**2))
+    sine = np.sin(b4 * t + b5)
+    return gaussian * sine
+
+
+def loss_function(b1: float, b2: float, b3: float, b4: float, b5: float, time_array: np.array, dt: float, desired_integral_value: float) -> float:
+    """
+    This function calculates the loss function for the laser pulse shape.
+    The loss function is the absolute difference between the integral of the laser pulse shape and the desired integral value.
+    
+    Parameters
+    ----------
+    b1 : float
+        The PWmat rt-TDDFT parameter b1.
+    b2 : float
+        The PWmat rt-TDDFT parameter b2.
+    b3 : float
+        The PWmat rt-TDDFT parameter b3.
+    b4 : float
+        The PWmat rt-TDDFT parameter b4.
+    b5 : float
+        The PWmat rt-TDDFT parameter b5.
+    time_array : np.array
+        The 1d-array contains the time series of the laser pulse, in the unit of fs.
+    dt : float
+        The time step of rt-TDDFT calculation, in the unit of fs.
+    desired_integral_value : float
+        The desired integral value of the laser pulse shape.
+
+    Returns
+    -------
+    loss : float
+        The loss value of the laser pulse shape.
+
+    """
+    integrand_values = integrand(time_array, b1, b2, b3, b4, b5)
+    integral_value = simps(integrand_values, time_array)
+    return np.abs(integral_value - desired_integral_value)
+
+
+def generate_laser_pulse(itype: int, E0: float, t0: float, sigma: float, omega: float, phi: float, t: np.array, dt: float) -> np.array:
     """
     This function calculates the laser pulse shape.
 
@@ -257,8 +325,8 @@ def generate_laser_pulse(itype, E0, t0, sigma, omega, phi, t, dt):
         The 1d-array contains the time of laser pulse, in the unit of fs.
     f_rttddft : np.array
         The 1d-array contains the laser pulse shape, in the unit of V/angstrom or a.u.
+
     """
-#    y = E0 * (1/(np.sqrt(2*np.pi) * sigma)) * np.sin(omega * t + phi) * np.exp(-(t - t0) ** 2 / (2 * sigma ** 2))
     y = E0 * np.sin(omega * t + phi) * np.exp(-(t - t0) ** 2 / (2 * sigma ** 2))
     y_cum = dt * np.cumsum(y)
     if itype == 2:
@@ -423,12 +491,15 @@ def main():
     sigma = calculate_sigma(fwhm)
     t0, t = calculate_time(sigma, dt)
     fluence = calculate_fluence(power, energy, t, repetition_rate, diameter)
+    flu = unit_conversion_fluence(itype, fluence, E0_in_VA, au_to_fs)
 
-    b1 = fluence_to_b1(itype, fluence, E0_in_VA, au_to_fs) / (1/(sigma * np.sqrt(2 * np.pi))) ## here divided the area of the Gaussian profile.
+    initial_guess = [1.0]
     b2 = t0
     b3 = np.sqrt(2) * sigma
     b4 = 2 * np.pi * pc.c * pc.giga * pc.femto / wavelength
     b5 = pc.pi / 2
+    results = minimize(loss_function, initial_guess, args=(b2, b3, b4, b5, time_array, dt, flu))
+    b1 = np.abs(results.x[0])
 
     num = count_non_empty_vars(b1, b2, b3, b4, b5)
     if num:
