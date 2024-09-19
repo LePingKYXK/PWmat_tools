@@ -11,7 +11,7 @@ from scipy.optimize import minimize
 https://docs.scipy.org/doc/scipy/reference/constants.html
 
 pc.pi                               # pi = 3.141592653589793
-pc.c                                # speed of light = 299792458.0 [ m s^(-1) ]
+pc.c                                # speed of light = 299792458.0 [ m s^{-1} ]
 pc.e                                # charge of electron = 1.602176634e-19 [ C ]
 pc.h                                # Plancck constant = 6.62607015e-34 [J s]
 pc.hbar                             # Plancck constant / 2*pi = 1.0545718176461565e-34 [ J s ]
@@ -21,7 +21,7 @@ pc.femto                            # femto = 10^{-15} [ s ]
 pc.kilo                             # kilo = 10^{3} = 1000
 pc.micron                           # micron = 10^{-6} [ m ]
 pc.nano                             # nano = 10^{-9}
-pc.epsilon_0                        # vacuum permittivity [ F m^−1 ]
+pc.epsilon_0                        # vacuum permittivity [ F m^{−1} ]
 pc.value("Bohr radius")             # Bohr radius [ m ]
 pc.value("Hartree energy")          # Hartree Energy [ J ]
 pc.value("Hartree energy in eV")    # Hartree energy [ eV ]
@@ -471,8 +471,8 @@ def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4
     elif energy:
         print(f"b1 = {b1}, for the input laser Energy density of {energy:.2f} J/m^2")
     print(f"b2 = {b2}, for the input laser peak center at {t0:.2f} fs.")
-    print(f"b3 = {b3}, for the input laser wavelength of {fwhm} fs.")
-    print(f"b4 = {b4}, for the input laser with FWHM of {wavelength} nm.")
+    print(f"b3 = {b3}, for the input laser with the FWHM of {fwhm} fs.")
+    print(f"b4 = {b4}, for the input laser wavelength of {wavelength} nm.")
     print(f"b5 = {b5}, for converting sin function to cos function.")
     print("".join(("\n", draw_sline)))
     print(f"TDDFT_TIME = {itype}, {num}, {b1}, {b2}, {b3}, {b4}, {b5}")
