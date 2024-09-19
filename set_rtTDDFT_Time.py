@@ -458,7 +458,7 @@ def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4
     draw_sline = "-" * 79
     draw_exclamation = "!" * 79
     print("".join(("\n", draw_dline)))
-    print(f"The energy of laser with {wavelength} nm is: {E_photon:.2f} eV.")
+    print(f"The energy of laser with {wavelength} nm is {E_photon:.2f} eV.")
 
     if 1 / dt < 2 * b4:    # The Nyquist sampling frequency
         print("".join(("\n", draw_exclamation)))
