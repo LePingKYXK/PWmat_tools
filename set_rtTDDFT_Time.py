@@ -453,11 +453,19 @@ def plot_figure(time, f_rttddft, E0_in_VA, flag):
     plt.show()
 
 
-def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, fwhm, itype, num):
+def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, dt, fwhm, itype, num):
     draw_dline = "=" * 79
     draw_sline = "-" * 79
+    draw_exclamation = "!" * 79
     print("".join(("\n", draw_dline)))
     print(f"The energy of laser with {wavelength} nm is: {E_photon:.2f} eV.")
+
+    if 1 / dt < 2 * b4:    # The Nyquist sampling frequency
+        print("".join(("\n", draw_exclamation)))
+        print(f"The omega of laser with {wavelength} nm is {b4:.2f} rad/fs.")
+        print(f"Warning: The time step {dt} is too close to the value of omega {b4}.\nPlease DECREASE the time step, not greater than {1 /(2 * b4):.2f} fs.")
+        print("".join((draw_exclamation, "\n")))
+
     if power:
         print(f"b1 = {b1}, for the input laser fluence of {fluence:.2f} W/m^2 or {fluence * (pc.kilo / (pc.hecto) ** 2):.2f} mW/cm^2.")
     elif energy:
@@ -472,7 +480,7 @@ def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4
 
 
 def main():
-    itype = args.type                                            # 2, 22
+    itype = args.type                                            # 2 or 22
     wavelength = args.wavelength                                 # in unit of nm
     power = args.power                                           # in unit of mW
     energy = args.energy                                         # in unit of mJ
@@ -504,7 +512,7 @@ def main():
     num = count_non_empty_vars(b1, b2, b3, b4, b5)
     if num:
         time, f_rttddft = generate_laser_pulse(itype, b1, b2, sigma, b4, b5, time_array, dt)
-        print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, fwhm, itype, num)
+        print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, dt, fwhm, itype, num)
         save_to_file(time, f_rttddft, filename='IN.TDDFT_TIME')
         plot_figure(time, f_rttddft, E0_in_VA, itype)
     else:
