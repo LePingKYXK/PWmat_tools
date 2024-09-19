@@ -328,7 +328,7 @@ def generate_laser_pulse(itype: int, E0: float, t0: float, sigma: float, omega: 
 
     """
     f_rttddft = E0 * np.sin(omega * t + phi) * np.exp(-(t - t0) ** 2 / (2 * sigma ** 2))
-    f_rttddft_cum = dt * np.cumsum(y)
+    f_rttddft_cum = dt * np.cumsum(f_rttddft)
     if itype == 2:
         return t, f_rttddft
     elif itype == 22:
