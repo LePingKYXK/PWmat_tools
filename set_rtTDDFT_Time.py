@@ -327,12 +327,12 @@ def generate_laser_pulse(itype: int, E0: float, t0: float, sigma: float, omega: 
         The 1d-array contains the laser pulse shape, in the unit of V/angstrom or a.u.
 
     """
-    y = E0 * np.sin(omega * t + phi) * np.exp(-(t - t0) ** 2 / (2 * sigma ** 2))
-    y_cum = dt * np.cumsum(y)
+    f_rttddft = E0 * np.sin(omega * t + phi) * np.exp(-(t - t0) ** 2 / (2 * sigma ** 2))
+    f_rttddft_cum = dt * np.cumsum(y)
     if itype == 2:
-        return t, y
+        return t, f_rttddft
     elif itype == 22:
-        return t, y_cum
+        return t, f_rttddft_cum
 
 
 def count_non_empty_vars(b1, b2, b3, b4, b5):
@@ -470,6 +470,7 @@ def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4
         print(f"b1 = {b1}, for the input laser fluence of {fluence:.2f} W/m^2 or {fluence * (pc.kilo / (pc.hecto) ** 2):.2f} mW/cm^2.")
     elif energy:
         print(f"b1 = {b1}, for the input laser Energy density of {energy:.2f} J/m^2")
+
     print(f"b2 = {b2}, for the input laser peak center at {t0:.2f} fs.")
     print(f"b3 = {b3}, for the input laser with the FWHM of {fwhm} fs.")
     print(f"b4 = {b4}, for the input laser wavelength of {wavelength} nm.")
@@ -481,14 +482,14 @@ def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4
 
 def main():
     itype = args.type                                            # 2 or 22
-    wavelength = args.wavelength                                 # in unit of nm
-    power = args.power                                           # in unit of mW
-    energy = args.energy                                         # in unit of mJ
-    repetition_rate = args.repetition                            # in unit of kHz
-    diameter = args.diameter                                     # in unit of micron
-    center = args.center                                         # in unit of fs
-    fwhm = args.fwhm                                             # in unit of fs
-    dt = args.time_step                                          # in unit of fs (0.1, 1)
+    wavelength = args.wavelength                                 # in the unit of nm
+    power = args.power                                           # in the unit of mW
+    energy = args.energy                                         # in the unit of mJ
+    repetition_rate = args.repetition                            # in the unit of kHz
+    diameter = args.diameter                                     # in the unit of micron
+    center = args.center                                         # in the unit of fs
+    fwhm = args.fwhm                                             # in the unit of fs
+    dt = args.time_step                                          # in the unit of fs (0.1, 1)
 
     # Unit conversion
     E0_in_VA = pc.value("Hartree energy in eV") / pc.value("Bohr radius") * pc.angstrom
