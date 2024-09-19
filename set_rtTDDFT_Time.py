@@ -462,7 +462,7 @@ def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4
         print(f"b1 = {b1}, for the input laser fluence of {fluence:.2f} W/m^2 or {fluence * (pc.kilo / (pc.hecto) ** 2):.2f} mW/cm^2.")
     elif energy:
         print(f"b1 = {b1}, for the input laser Energy density of {energy} J/m^2")
-    print(f"b2 = {b2}, for the input laser peak center of {t0} fs.")
+    print(f"b2 = {b2}, for the input laser peak center at {t0} fs.")
     print(f"b3 = {b3}, for the input laser wavelength of {fwhm} fs.")
     print(f"b4 = {b4}, for the input laser with FWHM of {wavelength} nm.")
     print(f"b5 = {b5}, for converting sin function to cos function.")
