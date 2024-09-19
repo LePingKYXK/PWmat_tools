@@ -489,8 +489,8 @@ def main():
 
     E_photon = calculate_photon_energy(wavelength)
     sigma = calculate_sigma(fwhm)
-    t0, t = calculate_time(sigma, dt)
-    fluence = calculate_fluence(power, energy, t, repetition_rate, diameter)
+    t0, time_array = calculate_time(sigma, dt)
+    fluence = calculate_fluence(power, energy, time_array, repetition_rate, diameter)
     flu = unit_conversion_fluence(itype, fluence, E0_in_VA, au_to_fs)
 
     initial_guess = [1.0]
@@ -503,7 +503,7 @@ def main():
 
     num = count_non_empty_vars(b1, b2, b3, b4, b5)
     if num:
-        time, f_rttddft = generate_laser_pulse(itype, b1, b2, sigma, b4, b5, t, dt)
+        time, f_rttddft = generate_laser_pulse(itype, b1, b2, sigma, b4, b5, time_array, dt)
         print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, fwhm, itype, num)
         save_to_file(time, f_rttddft, filename='IN.TDDFT_TIME')
         plot_figure(time, f_rttddft, E0_in_VA, itype)
