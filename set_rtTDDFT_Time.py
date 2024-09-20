@@ -31,13 +31,13 @@ pc.angstrom                         # 1E-10 [ m ]
 
 
 parser = ap.ArgumentParser(add_help=True,
-                    formatter_class=ap.ArgumentDefaultsHelpFormatter,
-                    description="""
-                    Author:   Dr. Huan Wang,
-                    Email:    huan.wang@whut.edu.cn,
-                    Version:  v1.2,
-                    Date:     August 11, 2024,
-                    Modified: September 19, 2024""")
+                           formatter_class=ap.ArgumentDefaultsHelpFormatter,
+                           description="""
+                           Author:   Dr. Huan Wang,
+                           Email:    huan.wang@whut.edu.cn,
+                           Version:  v1.3,
+                           Date:     August 11, 2024,
+                           Modified: September 20, 2024""")
 parser.add_argument("-t", "--type",
                     metavar="<itype_time>",
                     type=int,
@@ -108,6 +108,24 @@ def calculate_photon_energy(wavelength):
     """
     energy = pc.h * pc.c / (wavelength * pc.nano)
     return energy / pc.e
+
+
+def calculate_omega(wavelength):
+    """
+    This function calculates the omega from the laser wavelength.
+    
+    Parameters
+    ----------
+    wavelength : float
+        The wavelength of the laser pulse, in the unit of nm.
+
+    Returns
+    -------
+    omega : float
+        The angular frequency of the photon, omega, in the unit of Hz.
+        
+    """
+    return 2 * pc.pi * pc.c / (wavelength * pc.nano)
 
 
 def calculate_fluence(power, energy, time, repetition_rate, diameter):
@@ -457,17 +475,18 @@ def plot_figure(time, f_rttddft, E0_in_VA, flag):
     plt.show()
 
 
-def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, dt, fwhm, itype, num):
+def print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, dt, omega, fwhm, itype, num):
     draw_dline = "=" * 79
     draw_sline = "-" * 79
     draw_exclamation = "!" * 79
     print("".join(("\n", draw_dline)))
     print(f"The energy of laser with {wavelength} nm is {E_photon:.2f} eV.")
 
-    if 1 / dt < 2 * b4:    # The Nyquist sampling frequency
+    if 1 / (dt * pc.femto) <= 2 * omega:    # check if the time step is too large, based on the Nyquist Sampling Theorem.
         print("".join(("\n", draw_exclamation)))
-        print(f"The omega of laser with {wavelength} nm is {b4:.2f} rad/fs.")
-        print(f"Warning: The time step {dt} is too close to the value of omega {b4}.\nPlease DECREASE the time step, not greater than {1 /(2 * b4):.2f} fs.")
+        print(f"The omega of laser with {wavelength} nm is {omega / pc.peta:.2f} PHz (i.e. {omega / pc.peta:.2f} x 10^15 Hz).")
+        print(f"Warning: The time step {dt} fs is too large!\nPlease DECREASE the time step.")
+        print(f"Recommended time step must be smaller than {1 / (2 * omega * pc.femto):.4f} fs.\nFor accurate calculations, time step: {1 / (10 * omega * pc.femto):.4f} fs.")
         print("".join((draw_exclamation, "\n")))
 
     if power:
@@ -493,7 +512,7 @@ def main():
     diameter = args.diameter                                     # in the unit of micron
     center = args.center                                         # in the unit of fs
     fwhm = args.fwhm                                             # in the unit of fs
-    dt = args.time_step                                          # in the unit of fs (0.1, 1)
+    dt = args.time_step                                          # in the unit of fs
 
     # Unit conversion
     E0_in_VA = pc.value("Hartree energy in eV") / pc.value("Bohr radius") * pc.angstrom
@@ -505,19 +524,20 @@ def main():
     t0, time_array = calculate_time(sigma, dt)
     fluence = calculate_fluence(power, energy, time_array, repetition_rate, diameter)
     flu = unit_conversion_fluence(itype, fluence, E0_in_VA, au_to_fs)
+    omega = calculate_omega(wavelength)
 
     initial_guess = [1.0]
-    b2 = t0
-    b3 = np.sqrt(2) * sigma
-    b4 = 2 * np.pi * pc.c * pc.giga * pc.femto / wavelength
-    b5 = pc.pi / 2
+    b2 = t0                                                    # in the unit of fs.
+    b3 = np.sqrt(2) * sigma                                    # in the unit of fs.
+    b4 = 2 * np.pi * pc.c * pc.giga * pc.femto / wavelength    # in the unit of rad/fs.
+    b5 = pc.pi / 2                                             # in the unit of rad.
     results = minimize(loss_function, initial_guess, args=(b2, b3, b4, b5, time_array, dt, flu))
     b1 = np.abs(results.x[0])
 
     num = count_non_empty_vars(b1, b2, b3, b4, b5)
     if num:
         time, f_rttddft = generate_laser_pulse(itype, b1, b2, sigma, b4, b5, time_array, dt)
-        print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, dt, fwhm, itype, num)
+        print_to_screen(wavelength, E_photon, power, fluence, energy, b1, b2, b3, b4, b5, t0, dt, omega, fwhm, itype, num)
         save_to_file(time, f_rttddft, filename='IN.TDDFT_TIME')
         plot_figure(time, f_rttddft, E0_in_VA, itype)
     else:
