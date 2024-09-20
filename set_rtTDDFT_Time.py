@@ -245,7 +245,7 @@ def calculate_time(sigma, dt):
         The 1d-array contains the time of laser pulse, in unit of fs.
     """
     if sigma:
-        t = 6 * sigma / 0.997
+        t = 6 * sigma / 0.9973
         t0 = t / 2
         return t0, np.arange(0, int(t) + dt, dt)
     else:
