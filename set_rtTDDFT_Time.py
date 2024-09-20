@@ -41,12 +41,14 @@ parser = ap.ArgumentParser(add_help=True,
 parser.add_argument("-t", "--type",
                     metavar="<itype_time>",
                     type=int,
+                    required=True,
                     help="The type of rt-TDDFT time for calculation, (can be 2, 22)",
                     default=22
                     )
 parser.add_argument("-l", "--wavelength",
                     metavar="<wavelength>",
                     type=float,
+                    required=True,
                     help="The wavelength of the laser pulse, in the unit of nm",
                     )
 parser.add_argument("-p", "--power",
@@ -78,11 +80,13 @@ parser.add_argument("-c", "--center",
 parser.add_argument("-w", "--fwhm",
                     metavar="<FWHM>",
                     type=float,
+                    required=True,
                     help="The Full width half maximum of the laser pulse (sometimes we call the pulse duration), in the unit of fs",
                     )
 parser.add_argument("-dt", "--time_step",
                     metavar="<time step>",
                     type=float,
+                    required=True,
                     help="The time step of rt-TDDFT calculation, in the unit of fs",
                     )
 args = parser.parse_args()
