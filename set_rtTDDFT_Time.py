@@ -14,7 +14,7 @@ pc.pi                               # pi = 3.141592653589793
 pc.c                                # speed of light = 299792458.0 [ m s^{-1} ]
 pc.e                                # charge of electron = 1.602176634e-19 [ C ]
 pc.h                                # Plancck constant = 6.62607015e-34 [J s]
-pc.hbar                             # Plancck constant / 2*pi = 1.0545718176461565e-34 [ J s ]
+pc.hbar                             # Plancck constant / (2 * pi) = 1.0545718176461565e-34 [ J s ]
 pc.centi                            # centi = 10^{-2} = 0.01
 pc.hecto                            # hecto = 10^{2} = 100
 pc.femto                            # femto = 10^{-15} [ s ]
