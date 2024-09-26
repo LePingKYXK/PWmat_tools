@@ -104,7 +104,12 @@ def plot_variable_vs_time(x, y, color, label, ax):
     ax.plot(x, y, color, label=label)
     ax.set_xlim([0, x.max()])
     ax.set_xlabel('Time (fs)')
-    ax.set_ylabel(f'{label} (eV)')
+    if "Energy" in label:
+        ax.set_ylabel(f'{label} (eV)')
+    elif "Temperature" in label:
+        ax.set_ylabel(f'{label} (K)')
+    else:
+        ax.set_ylabel(f'{label}')
     ax.legend()
 
 
