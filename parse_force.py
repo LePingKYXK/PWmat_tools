@@ -39,6 +39,24 @@ def number_of_atoms(filename: Path) -> int:
     return int(match_atom.group(1))
 
 
+def check_indices(indices: np.ndarray, num_atom: int):
+    """Check the indices."""
+
+    try:
+        if isinstance(indices, int) and indices == 0:
+            return num_atom
+        elif isinstance(indices, list):
+            if max(indices) > num_atom:
+                raise ValueError(f"Error: The maximum index is {num_atom}, but {max(indices)} is given.")
+            else:
+                return np.array(indices)
+        else:
+            raise ValueError("Error: Invalid input. Please provide either an integer 0 or a list of indices.")
+    except ValueError as e:
+        print(e)
+        exit()
+
+
 def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
     """Parse the MOVEMENT file to obtain time and Force vector components (x, y, z)."""
 
@@ -79,7 +97,8 @@ def main():
     filename = args.filename
     indices = args.indices
     num_atom = number_of_atoms(filename)
-    parse_MOVEMENT_file(filename, indices)
+    row_marks = check_indices(indices, num_atom)
+    time, data = parse_MOVEMENT_file(filename, row_marks)
 
 
 if "__main__" == __name__:
