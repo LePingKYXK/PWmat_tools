@@ -149,7 +149,7 @@ def plot_force_by_xyz(time: np.ndarray, force: np.ndarray, row_marks: int or lis
         for j in range(force.shape[1]):
             axs[i].plot(time, force[:,j,i].T, label="_".join(("Element", str(row_marks[j]))))
             axs[i].set_ylabel(labels[i])
-            ax.legend()
+            axs[i].legend()
     plt.tight_layout()
     plt.show()
 
