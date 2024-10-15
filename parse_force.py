@@ -141,7 +141,7 @@ def plot_force_by_xyz(time: np.ndarray, force: np.ndarray, row_marks: int or lis
     labels = ("Force_x", "Force_y", "Force_z")
 
     if isinstance(row_marks, int):
-        indices = np.arange(1, row_marks + 1)
+        row_marks = np.arange(1, row_marks + 1)
             
     fig, axs = plt.subplots(3, 1, figsize=(8,  3 * force.shape[1]))
     for i in range(3):
@@ -160,7 +160,7 @@ def plot_force_by_elements(time: np.ndarray, force: np.ndarray, row_marks: int o
     labels = ("Force_x", "Force_y", "Force_z")
 
     if isinstance(row_marks, int):
-        indices = np.arange(1, row_marks + 1)
+        row_marks = np.arange(1, row_marks + 1)
             
     fig, axs = plt.subplots(force.shape[1], 1, figsize=(8, 3 * force.shape[1]))
     for i in range(force.shape[1]):
