@@ -1,7 +1,9 @@
 
 import argparse as ap
 import numpy as np
+import matplotlib.pyplot as plt
 import re
+from pathlib import Path
 
 
 parser = ap.ArgumentParser(add_help=True,
@@ -9,14 +11,21 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang,
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v1.0,
-                           Date:     Octber 13, 2024
+                           Version:  v1.1,
+                           Date:     October 13, 2024
+                           Modified: October 15, 2024
                            """)
-parser.add_argument("-f", "--filename",
+parser.add_argument("-f", "--intputfile",
                     metavar="<input filename>",
                     type=Path,
                     help="The MOVEMENT file",
                     default=Path.cwd() / "MOVEMENT"
+                    )
+parser.add_argument("-o", "--outputfile",
+                    metavar="<output filename>",
+                    type=Path,
+                    help="The force file",
+                    default=Path.cwd() / "force.csv"
                     )
 parser.add_argument("-i", "--indices",
                     metavar="<indices of atoms>",
@@ -24,6 +33,13 @@ parser.add_argument("-i", "--indices",
                     nargs="+",
                     help="The indices of atoms to be analyzed",
                     default=0
+                    )
+parser.add_argument("-p", "--plot",
+                    metavar="<plot figure>",
+                    type=str,
+                    choices=["xyz", "elements"],
+                    help="Plot the force according to the xyz components or the elements.",
+                    default=None
                     )
 args = parser.parse_args()
 
@@ -59,12 +75,13 @@ def check_indices(indices: np.ndarray, num_atom: int):
 
 def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
     """Parse the MOVEMENT file to obtain time and Force vector components (x, y, z)."""
-
-    data_list = []
+    
     time_list = []
+    data_list = []
     table_data = []
     
     with open(filename, 'r') as fo:
+        
         collecting = False
         current_line = 0
         
@@ -89,16 +106,78 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
                     collecting = False
                 elif isinstance(row_marks, np.ndarray) and current_line == row_marks.max():
                     collecting = False
-  
-    return time_list, data_list
+
+    time = np.asfarray(time_list) 
+    
+    if isinstance(row_marks, int):
+        data = np.array(data_list).reshape(time.size, row_marks, 3)
+#        print(f"force table:\n{data}")
+        return time, data
+    else:
+        data = np.array(data_list).reshape(time.size, -1, 3)[:,row_marks - 1,:]
+#        print(f"force table:\n{data}")
+        return time, data
+
+
+def save_data(filename: Path, time: np.ndarray, force: np.ndarray) -> None:
+    """Save the force on each atom."""
+    num_selected_atom = force.shape[1]
+    repeat_coordinates = "".join(("x, y, z", ", ")) * num_selected_atom
+    head_line = ", ".join(("Time (fs)", repeat_coordinates[:-2]))
+    
+    merged = np.zeros((time.size, force.shape[1] * 3 + 1))
+    merged[:,0] = time
+    for i in range(force.shape[1]):
+        merged[:, i*3+1:i*3+4] = force[:, i, :]
+    print(f"merged:\n{merged}")
+    np.savetxt(filename, merged, fmt="%.15f", delimiter=",",header=head_line)
+
+
+def plot_force_by_xyz(time: np.ndarray, force: np.ndarray) -> None:
+    """Plot the force according to the xyz components."""
+    
+    labels = ("Force_x", "Force_y", "Force_z")
+    fig, axs = plt.subplots(3, 1, figsize=(8, 6))
+    for i in range(3):
+        axs[i].set_xlabel("Time (fs)")
+        for j in range(force.shape[1]):
+            axs[i].plot(time, force[:,j,i].T)
+            axs[i].set_ylabel(labels[i])
+#           ax.legend()
+    plt.tight_layout()
+    plt.show()
+
+
+def plot_force_by_elements(time: np.ndarray, force: np.ndarray, indices: list) -> None:
+    """Plot the force by each element."""
+    
+    labels = ("Force_x", "Force_y", "Force_z")
+    fig, axs = plt.subplots(force.shape[1], 1, figsize=(8, 3 * force.shape[1]))
+    for i in range(force.shape[1]):
+        axs[i].set_xlabel("Time (fs)")
+        for j in range(3):
+            axs[i].plot(time, force[:,i,j].T, label=labels[j])
+            axs[i].set_ylabel("_".join(("Element", str(indices[i]))))
+            axs[i].legend()
+    plt.tight_layout()
+    plt.show()
 
 
 def main():
-    filename = args.filename
+    intputfile = args.intputfile
     indices = args.indices
-    num_atom = number_of_atoms(filename)
+    outputfile = args.outputfile
+    plot = args.plot
+    
+    num_atom = number_of_atoms(intputfile)
     row_marks = check_indices(indices, num_atom)
-    time, data = parse_MOVEMENT_file(filename, row_marks)
+    time, data = parse_MOVEMENT_file(intputfile, row_marks)
+    save_data(outputfile, time, data)
+    
+    if plot == "xyz":
+        plot_force_by_xyz(time, data)
+    elif plot == "elements":
+        plot_force_by_elements(time, data, indices)
 
 
 if "__main__" == __name__:
