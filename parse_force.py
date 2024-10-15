@@ -55,17 +55,20 @@ def number_of_atoms(filename: Path) -> int:
     return int(match_atom.group(1))
 
 
-def check_indices(indices: np.ndarray, num_atom: int):
+def check_indices(indices: int or list, num_atom: int) -> int or np.ndarray:
     """Check the indices."""
 
     try:
         if isinstance(indices, int) and indices == 0:
+            print(f"All {num_atom} atoms are selected.")
             return num_atom
         elif isinstance(indices, list):
             if max(indices) > num_atom:
                 raise ValueError(f"Error: The maximum index is {num_atom}, but {max(indices)} is given.")
             else:
-                return np.array(indices)
+                row_marks = np.array(indices)
+                print(f"The indices of selected atoms are: {row_marks}")
+                return row_marks
         else:
             raise ValueError("Error: Invalid input. Please provide either an integer 0 or a list of indices.")
     except ValueError as e:
@@ -129,7 +132,6 @@ def save_data(filename: Path, time: np.ndarray, force: np.ndarray) -> None:
     merged[:,0] = time
     for i in range(force.shape[1]):
         merged[:, i*3+1:i*3+4] = force[:, i, :]
-    print(f"merged:\n{merged}")
     np.savetxt(filename, merged, fmt="%.15f", delimiter=",",header=head_line)
 
 
@@ -152,6 +154,10 @@ def plot_force_by_elements(time: np.ndarray, force: np.ndarray, indices: list) -
     """Plot the force by each element."""
     
     labels = ("Force_x", "Force_y", "Force_z")
+
+    if isinstance(indices, int):
+        indices = np.arange(1, indices + 1)
+            
     fig, axs = plt.subplots(force.shape[1], 1, figsize=(8, 3 * force.shape[1]))
     for i in range(force.shape[1]):
         axs[i].set_xlabel("Time (fs)")
