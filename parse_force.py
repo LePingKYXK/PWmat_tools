@@ -135,35 +135,39 @@ def save_data(filename: Path, time: np.ndarray, force: np.ndarray) -> None:
     np.savetxt(filename, merged, fmt="%.15f", delimiter=",",header=head_line)
 
 
-def plot_force_by_xyz(time: np.ndarray, force: np.ndarray) -> None:
+def plot_force_by_xyz(time: np.ndarray, force: np.ndarray, row_marks: int or list) -> None:
     """Plot the force according to the xyz components."""
     
     labels = ("Force_x", "Force_y", "Force_z")
-    fig, axs = plt.subplots(3, 1, figsize=(8, 6))
+
+    if isinstance(row_marks, int):
+        indices = np.arange(1, row_marks + 1)
+            
+    fig, axs = plt.subplots(3, 1, figsize=(8,  3 * force.shape[1])))
     for i in range(3):
         axs[i].set_xlabel("Time (fs)")
         for j in range(force.shape[1]):
-            axs[i].plot(time, force[:,j,i].T)
+            axs[i].plot(time, force[:,j,i].T, label="_".join(("Element", str(row_marks[j]))))
             axs[i].set_ylabel(labels[i])
-#           ax.legend()
+            ax.legend()
     plt.tight_layout()
     plt.show()
 
 
-def plot_force_by_elements(time: np.ndarray, force: np.ndarray, indices: list) -> None:
+def plot_force_by_elements(time: np.ndarray, force: np.ndarray, row_marks: int or list) -> None:
     """Plot the force by each element."""
     
     labels = ("Force_x", "Force_y", "Force_z")
 
-    if isinstance(indices, int):
-        indices = np.arange(1, indices + 1)
+    if isinstance(row_marks, int):
+        indices = np.arange(1, row_marks + 1)
             
     fig, axs = plt.subplots(force.shape[1], 1, figsize=(8, 3 * force.shape[1]))
     for i in range(force.shape[1]):
         axs[i].set_xlabel("Time (fs)")
         for j in range(3):
             axs[i].plot(time, force[:,i,j].T, label=labels[j])
-            axs[i].set_ylabel("_".join(("Element", str(indices[i]))))
+            axs[i].set_ylabel("_".join(("Element", str(row_marks[i]))))
             axs[i].legend()
     plt.tight_layout()
     plt.show()
@@ -181,9 +185,9 @@ def main():
     save_data(outputfile, time, data)
     
     if plot == "xyz":
-        plot_force_by_xyz(time, data)
+        plot_force_by_xyz(time, data, row_marks)
     elif plot == "elements":
-        plot_force_by_elements(time, data, indices)
+        plot_force_by_elements(time, data, row_marks)
 
 
 if "__main__" == __name__:
