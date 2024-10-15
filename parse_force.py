@@ -143,7 +143,7 @@ def plot_force_by_xyz(time: np.ndarray, force: np.ndarray, row_marks: int or lis
     if isinstance(row_marks, int):
         indices = np.arange(1, row_marks + 1)
             
-    fig, axs = plt.subplots(3, 1, figsize=(8,  3 * force.shape[1])))
+    fig, axs = plt.subplots(3, 1, figsize=(8,  3 * force.shape[1]))
     for i in range(3):
         axs[i].set_xlabel("Time (fs)")
         for j in range(force.shape[1]):
