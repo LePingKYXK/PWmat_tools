@@ -12,9 +12,9 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang,
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v1.1,
+                           Version:  v1.2,
                            Date:     October 13, 2024
-                           Modified: October 15, 2024
+                           Modified: October 16, 2024
                            """)
 parser.add_argument("-f", "--intputfile",
                     metavar="<input filename>",
