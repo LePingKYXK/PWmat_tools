@@ -3,6 +3,7 @@ import argparse as ap
 import numpy as np
 import matplotlib.pyplot as plt
 import re
+import time
 from pathlib import Path
 
 
@@ -110,32 +111,32 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
                 elif isinstance(row_marks, np.ndarray) and current_line == row_marks.max():
                     collecting = False
 
-    time = np.asfarray(time_list) 
+    T_fs = np.asfarray(time_list) 
     
     if isinstance(row_marks, int):
-        data = np.array(data_list).reshape(time.size, row_marks, 3)
+        data = np.array(data_list).reshape(T_fs.size, row_marks, 3)
 #        print(f"force table:\n{data}")
-        return time, data
+        return T_fs, data
     else:
-        data = np.array(data_list).reshape(time.size, -1, 3)[:,row_marks - 1,:]
+        data = np.array(data_list).reshape(T_fs.size, -1, 3)[:,row_marks - 1,:]
 #        print(f"force table:\n{data}")
-        return time, data
+        return T_fs, data
 
 
-def save_data(filename: Path, time: np.ndarray, force: np.ndarray) -> None:
+def save_data(filename: Path, T_fs: np.ndarray, force: np.ndarray) -> None:
     """Save the force on each atom."""
     num_selected_atom = force.shape[1]
     repeat_coordinates = "".join(("x, y, z", ", ")) * num_selected_atom
     head_line = ", ".join(("Time (fs)", repeat_coordinates[:-2]))
     
-    merged = np.zeros((time.size, force.shape[1] * 3 + 1))
-    merged[:,0] = time
+    merged = np.zeros((T_fs.size, force.shape[1] * 3 + 1))
+    merged[:,0] = T_fs
     for i in range(force.shape[1]):
         merged[:, i*3+1:i*3+4] = force[:, i, :]
     np.savetxt(filename, merged, fmt="%.15f", delimiter=",",header=head_line)
 
 
-def plot_force_by_xyz(time: np.ndarray, force: np.ndarray, row_marks: int or list) -> None:
+def plot_force_by_xyz(T_fs: np.ndarray, force: np.ndarray, row_marks: int or list) -> None:
     """Plot the force according to the xyz components."""
     
     labels = ("Force_x", "Force_y", "Force_z")
@@ -147,14 +148,14 @@ def plot_force_by_xyz(time: np.ndarray, force: np.ndarray, row_marks: int or lis
     for i in range(3):
         axs[i].set_xlabel("Time (fs)")
         for j in range(force.shape[1]):
-            axs[i].plot(time, force[:,j,i].T, label="_".join(("Element", str(row_marks[j]))))
+            axs[i].plot(T_fs, force[:,j,i].T, label="_".join(("Element", str(row_marks[j]))))
             axs[i].set_ylabel(labels[i])
             axs[i].legend()
     plt.tight_layout()
     plt.show()
 
 
-def plot_force_by_elements(time: np.ndarray, force: np.ndarray, row_marks: int or list) -> None:
+def plot_force_by_elements(T_fs: np.ndarray, force: np.ndarray, row_marks: int or list) -> None:
     """Plot the force by each element."""
     
     labels = ("Force_x", "Force_y", "Force_z")
@@ -166,7 +167,7 @@ def plot_force_by_elements(time: np.ndarray, force: np.ndarray, row_marks: int o
     for i in range(force.shape[1]):
         axs[i].set_xlabel("Time (fs)")
         for j in range(3):
-            axs[i].plot(time, force[:,i,j].T, label=labels[j])
+            axs[i].plot(T_fs, force[:,i,j].T, label=labels[j])
             axs[i].set_ylabel("_".join(("Element", str(row_marks[i]))))
             axs[i].legend()
     plt.tight_layout()
@@ -178,16 +179,26 @@ def main():
     indices = args.indices
     outputfile = args.outputfile
     plot = args.plot
-    
+
+    drawline = "-" * 79
+    print("".join(("\n", drawline)))
+    start_time = time.time()
+
     num_atom = number_of_atoms(intputfile)
     row_marks = check_indices(indices, num_atom)
-    time, data = parse_MOVEMENT_file(intputfile, row_marks)
-    save_data(outputfile, time, data)
+    T_fs, data = parse_MOVEMENT_file(intputfile, row_marks)
+    print("The progress is running...")
+    
+    save_data(outputfile, T_fs, data)
+    print(f"The force on selected atoms is saved in '{outputfile}' file.")
+
+    print(f"Used Time: {time.time() - start_time:.2f} seconds.")
+    print("".join((drawline, "\n")))
     
     if plot == "xyz":
-        plot_force_by_xyz(time, data, row_marks)
+        plot_force_by_xyz(T_fs, data, row_marks)
     elif plot == "elements":
-        plot_force_by_elements(time, data, row_marks)
+        plot_force_by_elements(T_fs, data, row_marks)
 
 
 if "__main__" == __name__:
