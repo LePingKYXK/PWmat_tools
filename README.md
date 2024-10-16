@@ -169,3 +169,10 @@ $ python num_excited_electrons.py
 
 ## parse_force.py
 `parse_force.py` 脚本用于解析**PWmat在rt-TDDFT计算中产生的 MOVEMENT 文件中的 Force**。此脚本读取每个时刻的`Force`分量。用户可以通过 `-i`选项来输入元素的索引号选取元素，也可以不用`-i`选项选择体系里所有的元素（默认不需要输入，即选择所有元素）。脚本将处理后的`Force`分量保存问`.csv`格式的文件，通过`-o`选项，用户可以指定输出的文件名。另外，脚本提供`-p`选项用户绘图，其中 `-p xyz`功能可以得到受力的 `x y z`三个分量的图（上，中，下三个图分别绘制所选元素的 x, y, z 分量）；`-p elements`功能得到的是按所选元素绘制的各个元素的受力`x y z`的图（选了多少元素就有多少个图层，每个图层绘制一个元素的受力 x, y, z 随时间的变化 ）。
+
+使用方法：
+```python
+$ python parse_force.py -f MOVEMENT -i 1 2 5 -o 125.csv -p elements
+
+$ python parse_force.py -f MOVEMENT -i 1 2 5 -o 125.csv -p xyz
+```
