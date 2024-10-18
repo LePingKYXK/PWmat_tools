@@ -185,6 +185,7 @@ def main():
     start_time = time.time()
 
     num_atom = number_of_atoms(intputfile)
+    print(f"Number of atoms in this system: {num_atom}")
     row_marks = check_indices(indices, num_atom)
     time_array, data_array = parse_MOVEMENT_file(intputfile, row_marks)
     print("The progress is running...")
