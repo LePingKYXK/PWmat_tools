@@ -189,7 +189,7 @@ def main():
     time_array, data_array = parse_MOVEMENT_file(intputfile, row_marks)
     print("The progress is running...")
     
-    save_data(outputfile, time_array, data)
+    save_data(outputfile, time_array, data_array)
     print(f"The force on selected atoms is saved in '{outputfile}' file.")
 
     print(f"Used Time: {time.time() - start_time:.2f} seconds.")
