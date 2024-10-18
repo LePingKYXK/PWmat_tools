@@ -150,7 +150,7 @@ def plot_force_by_xyz(time_array: np.ndarray, force: np.ndarray, row_marks: int 
         axs[i].set_xlabel("Time (fs)")
         axs[i].set_xlim(time_array.min(), time_array.max())
         for j in range(force.shape[1]):
-            axs[i].plot(time_array, force[:,j,i].T, label="_".join(("Element", str(row_marks[j]))))
+            axs[i].plot(time_array, force[:,j,i].T, label="_".join(("Element", str(row_marks[j]))), alpha=0.5)
             axs[i].set_ylabel(labels[i])
             axs[i].legend()
     plt.tight_layout()
@@ -170,7 +170,7 @@ def plot_force_by_elements(time_array: np.ndarray, force: np.ndarray, row_marks:
         axs[i].set_xlabel("Time (fs)")
         axs[i].set_xlim(time_array.min(), time_array.max())
         for j in range(3):
-            axs[i].plot(time_array, force[:,i,j].T, label=labels[j])
+            axs[i].plot(time_array, force[:,i,j].T, label=labels[j], alpha=0.5)
             axs[i].set_ylabel("_".join(("Element", str(row_marks[i]))))
             axs[i].legend()
     plt.tight_layout()
