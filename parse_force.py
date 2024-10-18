@@ -88,6 +88,7 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
         
         collecting = False
         current_line = 0
+        print("The progress is running...")
         
         for line in fo:
             matche_time = re.search(r"Iteration\s*=\s+(\d+\.\d+E[-+]?\d+)", line)
@@ -147,6 +148,7 @@ def plot_force_by_xyz(time_array: np.ndarray, force: np.ndarray, row_marks: int 
     fig, axs = plt.subplots(3, 1, figsize=(8,  3 * force.shape[1]))
     for i in range(3):
         axs[i].set_xlabel("Time (fs)")
+        axs[i].set_xlim(time_array.min(), time_array.max())
         for j in range(force.shape[1]):
             axs[i].plot(time_array, force[:,j,i].T, label="_".join(("Element", str(row_marks[j]))))
             axs[i].set_ylabel(labels[i])
@@ -166,6 +168,7 @@ def plot_force_by_elements(time_array: np.ndarray, force: np.ndarray, row_marks:
     fig, axs = plt.subplots(force.shape[1], 1, figsize=(8, 3 * force.shape[1]))
     for i in range(force.shape[1]):
         axs[i].set_xlabel("Time (fs)")
+        axs[i].set_xlim(time_array.min(), time_array.max())
         for j in range(3):
             axs[i].plot(time_array, force[:,i,j].T, label=labels[j])
             axs[i].set_ylabel("_".join(("Element", str(row_marks[i]))))
@@ -188,7 +191,6 @@ def main():
     print(f"Number of atoms in this system: {num_atom}")
     row_marks = check_indices(indices, num_atom)
     time_array, data_array = parse_MOVEMENT_file(intputfile, row_marks)
-    print("The progress is running...")
     
     save_data(outputfile, time_array, data_array)
     print(f"The force on selected atoms is saved in '{outputfile}' file.")
