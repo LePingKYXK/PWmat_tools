@@ -4,7 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 import re
 import time
+from itertools import product
 from pathlib import Path
+from periodic_table import Periodic_Table_dict
 
 
 parser = ap.ArgumentParser(add_help=True,
@@ -12,7 +14,7 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang,
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v1.3,
+                           Version:  v1.4,
                            Date:     October 13, 2024
                            Modified: October 19, 2024
                            """)
@@ -21,12 +23,6 @@ parser.add_argument("-f", "--intputfile",
                     type=Path,
                     help="The MOVEMENT file",
                     default=Path.cwd() / "MOVEMENT"
-                    )
-parser.add_argument("-o", "--outputfile",
-                    metavar="<output filename>",
-                    type=Path,
-                    help="The force file",
-                    default=Path.cwd() / "force.csv"
                     )
 parser.add_argument("-i", "--indices",
                     metavar="<indices of atoms>",
@@ -40,7 +36,7 @@ parser.add_argument("-p", "--plot",
                     type=str,
                     choices=["xyz", "elements"],
                     help="Plot the force according to the xyz components or the elements.",
-                    default=None
+                    default="elements"
                     )
 args = parser.parse_args()
 
@@ -88,7 +84,7 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
         
         collecting = False
         current_line = 0
-        print("The progress is running...")
+        print("The program is running...")
         
         for line in fo:
             matche_time = re.search(r"Iteration\s*=\s+(\d+\.\d+E[-+]?\d+)", line)
@@ -105,7 +101,7 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
                 data_list.append(table_data)
             
             if collecting and not "-Force" in line:
-                table_data.append(line.strip().split()[1:])
+                table_data.append(line.strip().split())
                 current_line += 1
                 if isinstance(row_marks, int) and current_line == row_marks:
                     collecting = False
@@ -113,66 +109,83 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
                     collecting = False
 
     time_array = np.asfarray(time_list) 
-    
+    data_array = np.array(data_list).reshape(time_array.size, -1, 4)
+
+    atomic_number_array = data_array[0,:,0][row_marks-1].astype(int)
+    element_array = get_element_name(atomic_number_array)
+    print(f"The element list is: {element_array}")
+
     if isinstance(row_marks, int):
-        data_array = np.array(data_list).reshape(time_array.size, row_marks, 3)
-#        print(f"force table:\n{data}")
-        return time_array, data_array
+        return time_array, data_array[:,:,1:], element_array
     else:
-        data_array = np.array(data_list).reshape(time_array.size, -1, 3)[:,row_marks - 1,:]
-#        print(f"force table:\n{data}")
-        return time_array, data_array
+        return time_array, data_array[:,row_marks - 1,1:], element_array
 
 
-def save_data(filename: Path, time_array: np.ndarray, force: np.ndarray) -> None:
-    """Save the force on each atom."""
-    num_selected_atom = force.shape[1]
-    repeat_coordinates = "".join(("x, y, z", ", ")) * num_selected_atom
-    head_line = ", ".join(("Time (fs)", repeat_coordinates[:-2]))
+def get_element_name(atomic_numbers: np.ndarray) -> np.ndarray:
+    """Get the element name from the data."""
+    
+    element_name = []
+    for atomic_number in atomic_numbers:
+        for element, info in Periodic_Table_dict.items():
+            if info[0] == atomic_number:
+                element_name.append(element)
+    return element_name
+
+
+def save_data(time_array: np.ndarray, force: np.ndarray, row_marks: np.ndarray, element_array: np.ndarray) -> None:
+    """Save the force of each atom."""
+    
+    tags = ("Force_x", "Force_y", "Force_z")
+    elements = [f"{e}_{i}" for e, i in zip(element_array, row_marks)]
+    filename = ".".join(("_".join(elements), "csv"))
+    labels = product(elements, tags)
+    stings = ", ".join((f"{elem}_{force}" for elem, force in labels))
+    head_line = ", ".join(("Time (fs)", stings))
     
     merged = np.zeros((time_array.size, force.shape[1] * 3 + 1))
     merged[:,0] = time_array
+    
     for i in range(force.shape[1]):
         merged[:, i*3+1:i*3+4] = force[:, i, :]
-    np.savetxt(filename, merged, fmt="%.15f", delimiter=",",header=head_line)
+    np.savetxt(filename, merged, fmt="%.15f", delimiter=", ", header=head_line)
+    print(f"The force of selected atoms has saved to the '{filename}' file.")
 
 
-def plot_force_by_xyz(time_array: np.ndarray, force: np.ndarray, row_marks: int or list) -> None:
+def plot_force(flag: str, time_array: np.ndarray, force: np.ndarray, row_marks: int or list, element_array: np.ndarray) -> None:
     """Plot the force according to the xyz components."""
     
-    labels = ("Force_x", "Force_y", "Force_z")
+    tags = ("Force$_x$", "Force$_y$", "Force$_z$")
+    colors = ("dimgray", "tomato", "dodgerblue")
 
     if isinstance(row_marks, int):
         row_marks = np.arange(1, row_marks + 1)
+
+    elements = [f"{e}_{i}" for e, i in zip(element_array, row_marks)]
+
+    if flag == "elements":
+        fig, axs = plt.subplots(force.shape[1], 1, figsize=(8, 3 * force.shape[1]))
+        for i in range(force.shape[1]):
+            axs[i].set_xlabel("Time (fs)")
+            axs[i].set_ylabel(elements[i])
+            axs[i].set_xlim(time_array.min(), time_array.max())
             
-    fig, axs = plt.subplots(3, 1, figsize=(8,  3 * force.shape[1]))
-    for i in range(3):
-        axs[i].set_xlabel("Time (fs)")
-        axs[i].set_xlim(time_array.min(), time_array.max())
-        for j in range(force.shape[1]):
-            axs[i].plot(time_array, force[:,j,i].T, label="_".join(("Element", str(row_marks[j]))), alpha=0.5)
-            axs[i].set_ylabel(labels[i])
-            axs[i].legend()
-    plt.tight_layout()
-    plt.show()
+            for j in range(3):
+                labels = "_".join((elements[i], tags[j]))
+                axs[i].plot(time_array, force[:,i,j].T, color=colors[j], label=labels, alpha=0.6)
+                axs[i].legend()
 
-
-def plot_force_by_elements(time_array: np.ndarray, force: np.ndarray, row_marks: int or list) -> None:
-    """Plot the force by each element."""
-    
-    labels = ("Force_x", "Force_y", "Force_z")
-
-    if isinstance(row_marks, int):
-        row_marks = np.arange(1, row_marks + 1)
+    elif flag == "xyz":
+        fig, axs = plt.subplots(3, 1, figsize=(8,  3 * force.shape[1]))
+        for i in range(3):
+            axs[i].set_xlabel("Time (fs)")
+            axs[i].set_ylabel(tags[i])
+            axs[i].set_xlim(time_array.min(), time_array.max())
             
-    fig, axs = plt.subplots(force.shape[1], 1, figsize=(8, 3 * force.shape[1]))
-    for i in range(force.shape[1]):
-        axs[i].set_xlabel("Time (fs)")
-        axs[i].set_xlim(time_array.min(), time_array.max())
-        for j in range(3):
-            axs[i].plot(time_array, force[:,i,j].T, label=labels[j], alpha=0.5)
-            axs[i].set_ylabel("_".join(("Element", str(row_marks[i]))))
-            axs[i].legend()
+            for j in range(force.shape[1]):
+                label = "_".join((elements[j], str(row_marks[j]), tags[i]))
+                axs[i].plot(time_array, force[:,j,i].T, color=colors[i], label=label, alpha=0.6)
+                axs[i].set_ylabel(labels[i])
+                axs[i].legend()
     plt.tight_layout()
     plt.show()
 
@@ -180,7 +193,6 @@ def plot_force_by_elements(time_array: np.ndarray, force: np.ndarray, row_marks:
 def main():
     intputfile = args.intputfile
     indices = args.indices
-    outputfile = args.outputfile
     plot = args.plot
 
     drawline = "-" * 79
@@ -190,18 +202,13 @@ def main():
     num_atom = number_of_atoms(intputfile)
     print(f"Number of atoms in this system: {num_atom}")
     row_marks = check_indices(indices, num_atom)
-    time_array, data_array = parse_MOVEMENT_file(intputfile, row_marks)
+    time_array, data_array, element_array = parse_MOVEMENT_file(intputfile, row_marks)
     
-    save_data(outputfile, time_array, data_array)
-    print(f"The force on selected atoms is saved in '{outputfile}' file.")
-
+    save_data(time_array, data_array, row_marks, element_array)
     print(f"Used Time: {time.time() - start_time:.2f} seconds.")
     print("".join((drawline, "\n")))
-    
-    if plot == "xyz":
-        plot_force_by_xyz(time_array, np.asfarray(data_array), row_marks)
-    elif plot == "elements":
-        plot_force_by_elements(time_array, np.asfarray(data_array), row_marks)
+
+    plot_force(plot, time_array, np.asfarray(data_array), row_marks, element_array)
 
 
 if "__main__" == __name__:
