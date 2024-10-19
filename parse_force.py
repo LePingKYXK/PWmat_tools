@@ -170,8 +170,8 @@ def plot_force(flag: str, time_array: np.ndarray, force: np.ndarray, row_marks: 
             axs[i].set_xlim(time_array.min(), time_array.max())
             
             for j in range(3):
-                labels = "_".join((elements[i], tags[j]))
-                axs[i].plot(time_array, force[:,i,j].T, color=colors[j], label=labels, alpha=0.6)
+                label = "_".join((elements[i], tags[j]))
+                axs[i].plot(time_array, force[:,i,j].T, color=colors[j], label=label, alpha=0.6)
                 axs[i].legend()
 
     elif flag == "xyz":
@@ -184,7 +184,6 @@ def plot_force(flag: str, time_array: np.ndarray, force: np.ndarray, row_marks: 
             for j in range(force.shape[1]):
                 label = "_".join((elements[j], str(row_marks[j]), tags[i]))
                 axs[i].plot(time_array, force[:,j,i].T, color=colors[i], label=label, alpha=0.6)
-                axs[i].set_ylabel(labels[i])
                 axs[i].legend()
     plt.tight_layout()
     plt.show()
