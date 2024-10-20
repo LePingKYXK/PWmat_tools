@@ -16,7 +16,7 @@ parser = ap.ArgumentParser(add_help=True,
                            Email:    huan.wang@whut.edu.cn,
                            Version:  v1.4,
                            Date:     October 13, 2024
-                           Modified: October 19, 2024
+                           Modified: October 20, 2024
                            """)
 parser.add_argument("-f", "--intputfile",
                     metavar="<input filename>",
@@ -29,7 +29,7 @@ parser.add_argument("-i", "--indices",
                     type=int,
                     nargs="+",
                     help="The indices of atoms to be analyzed",
-                    default=0
+                    #default=0
                     )
 parser.add_argument("-p", "--plot",
                     metavar="<plot figure>",
@@ -42,7 +42,20 @@ args = parser.parse_args()
 
 
 def number_of_atoms(filename: Path) -> int:
-    """Return the number of atoms in the system."""
+    """
+    This function grabs and returns the number of atoms in the system.
+
+    Parameters
+    ----------
+    filename : Path
+        The MOVEMENT file.
+
+    Returns
+    -------
+    num_atom : int
+        The number of atoms in the system.
+
+    """
     
     with open(filename, 'r') as fo:
         for line in fo:
@@ -52,13 +65,33 @@ def number_of_atoms(filename: Path) -> int:
     return int(match_atom.group(1))
 
 
-def check_indices(indices: int or list, num_atom: int) -> int or np.ndarray:
-    """Check the indices."""
+def check_indices(indices: int or list, num_atom: int) -> np.ndarray:
+    """
+    This function validates whether the input indices exceed the range of the total atom count.
 
+    Parameters
+    ----------
+    indices : int or list
+        The custom input numbers (indices).
+    num_atom : int
+        The number of atoms in the system.
+
+    Raises
+    ------
+    ValueError
+        Warning, if the maximum indices exceed the number of atoms
+
+    Returns
+    -------
+    indices : np.ndarray
+        The 1D array contains the input indices.
+
+    """
+    
     try:
         if isinstance(indices, int) and indices == 0:
             print(f"All {num_atom} atoms are selected.")
-            return num_atom
+            return np.array(list(range(1, num_atom + 1)))
         elif isinstance(indices, list):
             if max(indices) > num_atom:
                 raise ValueError(f"Error: The maximum index is {num_atom}, but {max(indices)} is given.")
@@ -73,8 +106,51 @@ def check_indices(indices: int or list, num_atom: int) -> int or np.ndarray:
         exit()
 
 
+def get_element_name(atomic_numbers: np.ndarray) -> list:
+    """
+    This function collects the element name from the data_array by retracing the periodic table of elements.
+
+    Parameters
+    ----------
+    atomic_numbers : np.ndarray
+        A 1D array contains the atomic numbers.
+
+    Returns
+    -------
+    element_name : list[str]
+        A list contains the selected elements.
+
+    """
+    
+    element_name = []
+    for atomic_number in atomic_numbers:
+        for element, info in Periodic_Table_dict.items():
+            if info[0] == atomic_number:
+                element_name.append(element)
+    return element_name
+
+
 def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
-    """Parse the MOVEMENT file to obtain time and Force vector components (x, y, z)."""
+    """
+    Parse the MOVEMENT file to obtain time and Force vector components (x, y, z).
+
+    Parameters
+    ----------
+    filename : Path
+        The MOVEMENT file.
+    row_marks : np.ndarray
+        The 1D array contains the indices of atoms to be analyzed.
+
+    Returns
+    -------
+    time_array : np.ndarray
+        A 1D array contains the simulation time in the unit of femtosecond.
+    data_array : np.ndarray
+        A 3D array contains the force components (Force_x, Force_y, Force_z).
+    element_list : list[str]
+        A list contains the symbols of selected elements.
+
+    """
     
     time_list = []
     data_list = []
@@ -112,31 +188,38 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
     data_array = np.array(data_list).reshape(time_array.size, -1, 4)
 
     atomic_number_array = data_array[0,:,0][row_marks-1].astype(int)
-    element_array = get_element_name(atomic_number_array)
-    print(f"The element list is: {element_array}")
+    element_list = get_element_name(atomic_number_array)
+    print(f"The element list is: {element_list}")
 
     if isinstance(row_marks, int):
-        return time_array, data_array[:,:,1:], element_array
+        return time_array, data_array[:,:,1:], element_list
     else:
-        return time_array, data_array[:,row_marks - 1,1:], element_array
+        return time_array, data_array[:,row_marks - 1,1:], element_list
 
 
-def get_element_name(atomic_numbers: np.ndarray) -> np.ndarray:
-    """Get the element name from the data."""
+def save_data(time_array: np.ndarray, force: np.ndarray, row_marks: np.ndarray, element_list: list) -> None:
+    """
+    This function saves the force components of each selected atom along the simulation time to a CSV file.
+
+    Parameters
+    ----------
+    time_array : np.ndarray
+        A 1D array contains the simulation time in the unit of femtosecond.
+    force : np.ndarray
+        A 3D array contains the force components (Force_x, Force_y, Force_z).
+    row_marks : np.ndarray
+        A 1D array contains the input indices.
+    element_list : list[str]
+        A list contains the symbols of selected elements.
+
+    Returns
+    -------
+    None
     
-    element_name = []
-    for atomic_number in atomic_numbers:
-        for element, info in Periodic_Table_dict.items():
-            if info[0] == atomic_number:
-                element_name.append(element)
-    return element_name
-
-
-def save_data(time_array: np.ndarray, force: np.ndarray, row_marks: np.ndarray, element_array: np.ndarray) -> None:
-    """Save the force of each atom."""
+    """
     
     tags = ("Force_x", "Force_y", "Force_z")
-    elements = [f"{e}_{i}" for e, i in zip(element_array, row_marks)]
+    elements = [f"{e}_{i}" for e, i in zip(element_list, row_marks)]
     filename = ".".join(("_".join(elements), "csv"))
     labels = product(elements, tags)
     stings = ", ".join((f"{elem}_{force}" for elem, force in labels))
@@ -151,16 +234,33 @@ def save_data(time_array: np.ndarray, force: np.ndarray, row_marks: np.ndarray, 
     print(f"The force of selected atoms has saved to the '{filename}' file.")
 
 
-def plot_force(flag: str, time_array: np.ndarray, force: np.ndarray, row_marks: int or list, element_array: np.ndarray) -> None:
-    """Plot the force according to the xyz components."""
+def plot_force(flag: str, time_array: np.ndarray, force: np.ndarray, row_marks: int or list, element_list: list) -> None:
+    """
+    This function plots the force components according to the flags.
+
+    Parameters
+    ----------
+    flag : str
+        The conditions for plotting.
+    time_array : np.ndarray
+        A 1D array contains the simulation time in the unit of femtosecond.
+    force : np.ndarray
+        A 3D array contains the force components (Force_x, Force_y, Force_z).
+    row_marks : np.ndarray
+        A 1D array contains the input indices.
+    element_list : list[str]
+        A list contains the symbols of selected elements.
+
+    Returns
+    -------
+    None
+
+    """
     
     tags = ("Force$_x$", "Force$_y$", "Force$_z$")
     colors = ("dimgray", "tomato", "dodgerblue")
 
-    if isinstance(row_marks, int):
-        row_marks = np.arange(1, row_marks + 1)
-
-    elements = [f"{e}_{i}" for e, i in zip(element_array, row_marks)]
+    elements = [f"{e}_{i}" for e, i in zip(element_list, row_marks)]
 
     if flag == "elements":
         fig, axs = plt.subplots(force.shape[1], 1, figsize=(8, 3 * force.shape[1]))
@@ -190,6 +290,20 @@ def plot_force(flag: str, time_array: np.ndarray, force: np.ndarray, row_marks: 
 
 
 def main():
+    """
+    Workflow:
+        (1) grab the number of atoms in the system;
+        (2) check whether the custom input numbers (indices) exceed the number of atoms;
+        (3) parse the MOVEMENT file to obtain the simulation time, force components, and the element symbols;
+        (4) save the force components based on the selected elements along the simulation time.
+        (5) plot the force components of the selected elements vs the simulation time.
+
+    Returns
+    -------
+    None
+
+    """
+    
     intputfile = args.intputfile
     indices = args.indices
     plot = args.plot
@@ -201,13 +315,13 @@ def main():
     num_atom = number_of_atoms(intputfile)
     print(f"Number of atoms in this system: {num_atom}")
     row_marks = check_indices(indices, num_atom)
-    time_array, data_array, element_array = parse_MOVEMENT_file(intputfile, row_marks)
+    time_array, data_array, element_list = parse_MOVEMENT_file(intputfile, row_marks)
     
-    save_data(time_array, data_array, row_marks, element_array)
+    save_data(time_array, data_array, row_marks, element_list)
     print(f"Used Time: {time.time() - start_time:.2f} seconds.")
     print("".join((drawline, "\n")))
 
-    plot_force(plot, time_array, np.asfarray(data_array), row_marks, element_array)
+    plot_force(plot, time_array, np.asfarray(data_array), row_marks, element_list)
 
 
 if "__main__" == __name__:
