@@ -78,13 +78,11 @@ $ python num_excited_electrons.py
 
 
 ## parse_force.py
-The `parse_force.py` script is employed to parse the **MOVEMENT** file and plot the `Force` obtained from the **rt-TDDFT** calculations. By using the `-i` option, users can select the elements by the index (indices) or select All elements (by default, if users do NOT specify `-i` option). In addition, the parsed force values can be save as `.csv` file by `-o` option, specifing a output file name. Moreover, the `-p` option provide two types of ploting results. If users type `-p xyz`, the figure will present three panels for the x y z components of the specific elements. While if users type `-p elements`, the panels illustrate each element with their force components.
+The `parse_force.py` script is employed to parse the **MOVEMENT** file and plot the `Force` obtained from the **rt-TDDFT** calculations. The script will read the **MOVEMENT** file by default. Users can also specify the file name by typing `-f MOVEMNT_1st_try` if the file name has changed. By using the `-i` option, users can select the elements by the index (indices), e.g.， `-i 3 7 11` or select All elements by typing `-i 0`. In addition, the parsed force values will automatically save as a `.csv` file, with the output file name as the combination of element symbols and their index (e.g. if the user types `-i 3 7 11` and if the corresponding elements are `H`, `C`, and `N`, then the output file name is **H_1_C_3_N_11.csv**). Moreover, the `-p` option provides two types of plotting results. By default, each panel illustrates each element with the force components. If users type `-p xyz`, the figure will present three panels for the `x, y, z` components of the specific elements.
 
 Usage:
 ```python
-$ python parse_force.py -f MOVEMENT -i 1 2 5 -o 125.csv -p elements
-
-$ python parse_force.py -f MOVEMENT -i 1 2 5 -o 125.csv -p xyz
+$ python parse_force.py -f MOVEMENT -i 1 2 5
 ```
 --------------------------
 # PWmat_tools 简介
@@ -168,11 +166,9 @@ $ python num_excited_electrons.py
 ```
 
 ## parse_force.py
-`parse_force.py` 脚本用于解析**PWmat在rt-TDDFT计算中产生的 MOVEMENT 文件中的 Force**。此脚本读取每个时刻的`Force`分量。用户可以通过 `-i`选项来输入元素的索引号选取元素，也可以不用`-i`选项选择体系里所有的元素（默认不需要输入，即选择所有元素）。脚本将处理后的`Force`分量保存问`.csv`格式的文件，通过`-o`选项，用户可以指定输出的文件名。另外，脚本提供`-p`选项用户绘图，其中 `-p xyz`功能可以得到受力的 `x y z`三个分量的图（上，中，下三个图分别绘制所选元素的 x, y, z 分量）；`-p elements`功能得到的是按所选元素绘制的各个元素的受力`x y z`的图（选了多少元素就有多少个图层，每个图层绘制一个元素的受力 x, y, z 随时间的变化 ）。
+`parse_force.py` 脚本用于解析**PWmat在rt-TDDFT计算中产生的 MOVEMENT 文件中的 Force**。此脚本读取每个时刻的`Force`分量。默认不需要输入`MOVEMENT`文件名，但是如果用户修改了文件名，可以用`-f`来指定文件名，例如 `-i MOVEMENT_first_try`。用户可以通过 `-i`选项来输入元素的索引号选取元素。脚本将处理后的`Force`分量保存为`.csv`格式的文件，文件名为元素符号和对应的原子索引号（例如，输入的是 `-i 1 3 11`，加入对应的元素是 H C N，则保存的文件名为 **H_1_C_3_N_11.csv**）。另外，脚本提供`-p`选项用户绘图，其中默认的是根据绘制用户输入的序号对应的各个元素的受力分量（选了多少元素就有多少个图层，每个图层绘制一个元素的受力 x, y, z 随时间的变化 ）。如果用户希望按`x,y,z`来观察，也可以用 `-p xyz`功能可以得到受力的 `x y z`三个分量的图（上，中，下三个图分别绘制所选元素的 x, y, z 分量）。
 
 使用方法：
 ```python
-$ python parse_force.py -f MOVEMENT -i 1 2 5 -o 125.csv -p elements
-
-$ python parse_force.py -f MOVEMENT -i 1 2 5 -o 125.csv -p xyz
+$ python parse_force.py -i 1 2 5
 ```
