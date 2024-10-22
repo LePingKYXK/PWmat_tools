@@ -1,6 +1,6 @@
 
 Periodic_Table_dict = {
-#element: atomic_number, atomic_weight
+#element: [atomic_number, atomic_weight]
 "H" : [1  , 1.008] ,
 "He": [2  , 4.0026],
 "Li": [3  , 6.94]  ,
