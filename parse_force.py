@@ -197,7 +197,7 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
         return time_array, data_array[:,row_marks - 1,1:], element_list
 
 
-def save_data(time_array: np.ndarray, force: np.ndarray, row_marks: np.ndarray, element_list: list) -> None:
+def save_data(time_array: np.ndarray, force: np.ndarray, row_marks: np.ndarray, element_list: list, num_atom: int) -> None:
     """
     This function saves the force components of each selected atom along the simulation time to a CSV file.
 
@@ -211,6 +211,8 @@ def save_data(time_array: np.ndarray, force: np.ndarray, row_marks: np.ndarray, 
         A 1D array contains the input indices.
     element_list : list[str]
         A list contains the symbols of selected elements.
+    num_atom : int
+        The number of atoms in the system.
 
     Returns
     -------
@@ -220,7 +222,14 @@ def save_data(time_array: np.ndarray, force: np.ndarray, row_marks: np.ndarray, 
     
     tags = ("Force_x", "Force_y", "Force_z")
     elements = [f"{e}_{i}" for e, i in zip(element_list, row_marks)]
-    filename = ".".join(("_".join(elements), "csv"))
+
+    if len(element_list) <= 8:
+        filename = ".".join(("_".join(elements), "csv"))
+    elif len(element_list) == num_atom:
+        filename = ".".join("all_elements", "csv")
+    else:    # 8 < len(element_list) < num_atom:
+        filename = ".".join(("_".join(set(element_list)), "csv"))
+    
     labels = product(elements, tags)
     stings = ", ".join((f"{elem}_{force}" for elem, force in labels))
     head_line = ", ".join(("Time (fs)", stings))
@@ -271,7 +280,7 @@ def plot_force(flag: str, time_array: np.ndarray, force: np.ndarray, row_marks: 
             
             for j in range(3):
                 label = "_".join((elements[i], tags[j]))
-                axs[i].plot(time_array, force[:,i,j].T, color=colors[j], label=label, alpha=0.6)
+                axs[i].plot(time_array, force[:,i,j], color=colors[j], label=label, alpha=0.6)
                 axs[i].legend()
 
     elif flag == "xyz":
@@ -283,7 +292,7 @@ def plot_force(flag: str, time_array: np.ndarray, force: np.ndarray, row_marks: 
             
             for j in range(force.shape[1]):
                 label = "_".join((elements[j], str(row_marks[j]), tags[i]))
-                axs[i].plot(time_array, force[:,j,i].T, color=colors[i], label=label, alpha=0.6)
+                axs[i].plot(time_array, force[:,j,i], color=colors[i], label=label, alpha=0.6)
                 axs[i].legend()
     plt.tight_layout()
     plt.show()
@@ -317,11 +326,18 @@ def main():
     row_marks = check_indices(indices, num_atom)
     time_array, data_array, element_list = parse_MOVEMENT_file(intputfile, row_marks)
     
-    save_data(time_array, data_array, row_marks, element_list)
+    save_data(time_array, data_array, row_marks, element_list, num_atom)
     print(f"Used Time: {time.time() - start_time:.2f} seconds.")
     print("".join((drawline, "\n")))
-
-    plot_force(plot, time_array, np.asfarray(data_array), row_marks, element_list)
+    
+    try:
+        if len(element_list) <= 8:
+            plot_force(plot, time_array, np.asfarray(data_array), row_marks, element_list)
+        else:
+            raise ValueError("Too many elements to plot.")
+    except ValueError as e:
+        print(e)
+        exit()
 
 
 if "__main__" == __name__:
