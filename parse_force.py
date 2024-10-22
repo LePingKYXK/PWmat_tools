@@ -14,7 +14,7 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang,
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v1.5,
+                           Version:  v1.6,
                            Date:     October 13, 2024
                            Modified: October 22, 2024
                            """)
@@ -160,14 +160,15 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
         
         collecting = False
         current_line = 0
+        grab_t = re.compile(r"Iteration(?: \(fs\))?\s*=\s+(\d+\.\d+E[-+]?\d+)")
         print("The program is running...")
         
         for line in fo:
-            matche_time = re.search(r"Iteration\s*=\s+(\d+\.\d+E[-+]?\d+)", line)
+            matche_time = grab_t.search(line)
             if matche_time:
                 time_list.append(float(matche_time.group(1)))
                 
-            if "-Force" in line:
+            if re.search("-Force", line, re.IGNORECASE):
                 collecting = True
                 current_line = 0
                 table_data = []
@@ -176,7 +177,7 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
                 collecting = False
                 data_list.append(table_data)
             
-            if collecting and not "-Force" in line:
+            if collecting and not re.search("-Force", line, re.IGNORECASE):
                 table_data.append(line.strip().split())
                 current_line += 1
                 if isinstance(row_marks, int) and current_line == row_marks:
