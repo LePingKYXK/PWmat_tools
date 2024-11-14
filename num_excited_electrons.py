@@ -11,9 +11,9 @@ parser = ap.ArgumentParser(add_help=True,
                     description="""
                     Author:  Dr. Huan Wang,
                     Email:   huan.wang@whut.edu.cn,
-                    Version: v1.0,
+                    Version: v1.1,
                     Date:    August 11, 2024,
-                    Modify:  August 13, 2024"""
+                    Modify:  November 14, 2024"""
                     )
 parser.add_argument("-i", "--inputfile",
                     metavar="<plot.TDDFT.DOS>",
@@ -125,6 +125,7 @@ def plot_figure(data: np.array):
     ax.set_ylim([0, data[:, 1].max() * 1.2])
     ax.set_xlabel('Time (fs)')
     ax.set_ylabel('Number of Excited Electrons')
+    fig.tight_layout()
     plt.show()
 
 def main():
