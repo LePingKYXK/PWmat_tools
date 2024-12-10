@@ -71,6 +71,12 @@ def substraction(TDOS: np.ndarray, occDOS: np.ndarray) -> np.ndarray:
 def save_data(filename: Path, data: np.ndarray, header: str) -> None:
     np.savetxt(filename, data, delimiter=',', header=header)
 
+def plotdos(data: np.ndarray, header: str) -> None:
+    N = data.shape[1] // 3
+    
+    fig, axes = plt.subplots(1, N - 1, figsize=(N * 2, 5))
+    plt.tight_layout()
+    plt.show()
 
 def main():
     tdos_file   = args.inputf1
@@ -79,11 +85,25 @@ def main():
 
     TDOS_array, header_TDOS = read_DOS_file(tdos_file)
     occDOS_array, header_occDOS = read_DOS_file(occdos_file)
-    
-    results = np.concatenate((TDOS_array, occDOS_array), axis=1)
 
+    try:
+        combs = np.concatenate((TDOS_array, occDOS_array), axis=1)
+        print(f"The combined array:\n{combs}")
+    except ValueError as e:
+        print("Unable to combine arrays：", e)
+        exit()
+    else:
+        if np.array_equal(TDOS_array[:, 0], occDOS_array[:, 0]):
+            diff_array = substraction(TDOS_array[:, 1:], occDOS_array[:, 1:])
+            results = np.concatenate((combs, comb[:,[0]], diff_array), axis=1)
+        
+        else:
+            print(WARNING)
+            exit()
+    header = prepare_header(header_TDOS, header_occDOS)
+    save_data(args.output, results, header)
+    plotdos(results, header_TDOS)
 
-
-
+            
 if __name__ == '__main__':
     main()
