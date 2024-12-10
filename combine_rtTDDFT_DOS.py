@@ -80,7 +80,7 @@ def plotDOS(data: np.ndarray, header: str) -> None:
     for i in range(N - 1):
         x_columns = [1, N + i + 1, 2 * N + i + 1]
         for j in range(3):
-            labels = ["TDOS", "occDOS", "holeDOS"]
+            labels = ["total DOS", "elec DOS", "hole DOS"]
             colors = ['gray', 'r', 'b']
             axes[i].plot(data[:, x_columns[j]], data[:, 0], label=labels[j], c=colors[j])
         axes[i].set_title(f'DOS {titles[i]}')
