@@ -38,6 +38,21 @@ args = parser.parse_args()
 
 
 def read_DOS_file(filename: Path) -> np.ndarray:
+    """
+    This function reads the tr-TDDFT DOS file and returns the data and header.
+
+    Parameters
+    ----------
+    filename : Path
+        The path of the tr-TDDFT DOS file.
+
+    Returns
+    -------
+    data : np.ndarray
+        The data of the tr-TDDFT DOS file.
+    header : str
+        The header for describing the tr-TDDFT DOS data.
+    """
     data = np.genfromtxt(filename, comments='#')
 
     with open(filename, 'r') as fo:
@@ -59,6 +74,21 @@ def read_DOS_file(filename: Path) -> np.ndarray:
 
 
 def prepare_header(header1: str, header2: str) -> str:
+    """
+    This function prepares the header for the combined DOS file.
+
+    Parameters
+    ----------
+    header1 : str
+        The header for the TDOS file.
+    header2 : str
+        The header for the occDOS file.
+
+    Returns
+    -------
+    new_header : str
+        The combined header: TDOS, occDOS, and holeDOS.
+    """
     header3 = header1.replace("TDOS", "holeDOS")
     new_header = ",".join([header1, header2, header3])
     return new_header
@@ -71,7 +101,24 @@ def subtraction(TDOS: np.ndarray, occDOS: np.ndarray) -> np.ndarray:
 def save_data(filename: Path, data: np.ndarray, header: str) -> None:
     np.savetxt(filename, data, delimiter=',', header=header)
 
+
 def plotDOS(data: np.ndarray, header: str) -> None:
+    """
+    This function plots the tr-TDDFT DOS data.
+
+        1. The total DOS, electron DOS, and hole DOS are plotted separately.
+        2. The x-axis is the DOS, and the y-axis is the energy difference between the energy of each DOS point and the Fermi energy (E-E_f).
+        3. The title of each subplot is the name of the corresponding spin channel.
+        4. The legend of each subplot shows the DOS type.
+        5. The DOS data is saved in the output file.
+
+    Parameters
+    ----------
+    data : np.ndarray
+        The combined DOS data.
+    header : str
+        The header for the combined DOS data.
+    """
     N = data.shape[1] // 3
     titles = header.split(",")[1:]
     
@@ -91,7 +138,19 @@ def plotDOS(data: np.ndarray, header: str) -> None:
     plt.tight_layout()
     plt.show()
 
+
 def main():
+    """
+    Workflow:
+    1. Read the TDOS and occDOS files.
+    2. Modify the occDOS array to remove negative values.
+    3. Combine the TDOS and occDOS arrays.
+    4. Modify the holeDOS array to remove positive values.
+    5. Combine the Total DOS, occ DOS, and hole DOS arrays.
+    6. Prepare the header for the combined DOS file.
+    7. Save the combined DOS data and header.
+    8. Plot the DOS data according to the header.
+    """
     tdos_file   = args.inputf1
     occdos_file = args.inputf2
     WARNING = "Warning! The first column data in the two files are not equal."
@@ -107,7 +166,7 @@ def main():
         combs = np.concatenate((TDOS_array, modify_occDOS_array), axis=1)
         print(f"The combined array:\n{combs}")
     except ValueError as e:
-        print("Unable to combine arrays：", e)
+        print("Unable to combine arrays:", e)
         exit()
     else:
         if np.array_equal(TDOS_array[:, 0], occDOS_array[:, 0]):
