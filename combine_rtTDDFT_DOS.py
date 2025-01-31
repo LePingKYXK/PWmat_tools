@@ -108,9 +108,8 @@ def plotDOS(data: np.ndarray, header: str) -> None:
 
         1. The total DOS, electron DOS, and hole DOS are plotted separately.
         2. The x-axis is the DOS, and the y-axis is the energy difference between the energy of each DOS point and the Fermi energy (E-E_f).
-        3. The title of each subplot is the name of the corresponding spin channel.
-        4. The legend of each subplot shows the DOS type.
-        5. The DOS data is saved in the output file.
+        3. The title of each subplot is the name of the corresponding spin state.
+        4. The legend of each subplot shows the tr-TDDFTDOS type.
 
     Parameters
     ----------
