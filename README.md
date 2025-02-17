@@ -84,6 +84,16 @@ Usage:
 ```python
 $ python parse_force.py -f MOVEMENT -i 1 2 5
 ```
+
+
+## build_in_tddft_time.py
+The `build_in_tddft_time.py` script is designed to convert the first column of the `OUT.TDDFT_TIME` file into a zero-based sequence. The sequence's time intervals can be set according to a user-specified value while maintaining the same length as the original `OUT.TDDFT_TIME` file. The modified data is then saved in the `IN.TDDFT_TIME` file.
+
+Usage:
+```python
+$ python build_in_tddft_time.py -f OUT.TDDFT_TIME -dt 0.1
+```
+
 --------------------------
 # PWmat_tools 简介
 **PWmat_tools**系列脚本用于处理**PWmat**计算的结果文件。这些脚本以`Python3`语言编写，调用了`Numpy`，`Scipy`，`Matplotlib`等库，因此建议使用`Anaconda3`套件来管理和运行这些脚本。
@@ -171,4 +181,12 @@ $ python num_excited_electrons.py
 使用方法：
 ```python
 $ python parse_force.py -i 1 2 5
+```
+
+## build_in_tddft_time.py
+`build_in_tddft_time.py` 脚本用于将 `OUT.TDDFT_TIME`文件的第一列转换成从零开始的序列。序列的时间间隔可以按用户指定的数值进行设定，序列的长度与原始的`OUT.TDDFT_TIME`文件保持一致。修改后的数据保存在 `IN.TDDFT_TIME`文件中。
+
+使用方法：
+```python
+$ python build_in_tddft_time.py -f OUT.TDDFT_TIME -dt 0.1
 ```
