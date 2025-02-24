@@ -163,7 +163,7 @@ def plot_figure(data: list, flag: str):
     
     # Panel  7, Laser pulse vs Time
     laser = np.genfromtxt("OUT.TDDFT_TIME")
-    ax7 = fig.add_subplot(gs[5, :])
+    ax7 = fig.add_subplot(gs[4, :])
     ax7.plot(laser[:, 0], laser[:, 1], "dodgerblue", label="Laser pulse", alpha=0.6)
     ax7.set_xlim([0, time.max()])
     ax7.set_xlabel("Time (fs)")
