@@ -13,9 +13,9 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang,
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v1.4,
+                           Version:  v1.5,
                            Date:     August 12, 2024
-                           Modified: September 19, 2024""")
+                           Modified: February 24, 2025""")
 parser.add_argument("-f", "--filename",
                     metavar="<PWmat MDSTEPS file>",
                     type=Path,
@@ -116,7 +116,8 @@ def plot_variable_vs_time(x, y, color, label, ax):
 def plot_figure(data: list, flag: str):
     """
     This function deals with plotting. It will first convert the data into a numpy
-    2D-array with the data type as the float. Then, a 2 by 2 figure will plot.
+    2D-array with the data type as the float. Then, read the OUT.TDDFT_TIME file.
+    Finally, a 5 by 2 figure will plot.
 
     Parameters
     ----------
@@ -137,8 +138,8 @@ def plot_figure(data: list, flag: str):
     label2 = ['$\\Delta$ Total Energy', '$\\Delta$ Potential Energy', '$\\Delta$ Kinetic Energy']
     colors = ['-k', '-b', '-r']
 
-    fig  = plt.figure(figsize=(8, 8))
-    gs = GridSpec(4, 2)
+    fig  = plt.figure(figsize=(8, 10))
+    gs = GridSpec(5, 2)
 
     # Panel 1 to 3, (Total Energy, Potential Energy, and Kinetic vs time)
     for i, (label, color) in enumerate(zip(label1, colors)):
@@ -159,7 +160,16 @@ def plot_figure(data: list, flag: str):
                                       (8 if flag else 7, 'SCF Loops')]):
         ax = fig.add_subplot(gs[2+i, :])
         plot_variable_vs_time(time, data[:, tag], '-k', label, ax)
-
+    
+    # Panel  7, Laser pulse vs Time
+    laser = np.genfromtxt("OUT.TDDFT_TIME")
+    ax7 = fig.add_subplot(gs[5, :])
+    ax7.plot(laser[:, 0], laser[:, 1], "dodgerblue", label="Laser pulse", alpha=0.6)
+    ax7.set_xlim([0, time.max()])
+    ax7.set_xlabel("Time (fs)")
+    ax7.set_ylabel("Laser Intensity (a.u.)")
+    ax7.legend()
+    
     fig.tight_layout()
     plt.show()
 
