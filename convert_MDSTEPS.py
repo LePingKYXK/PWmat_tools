@@ -132,7 +132,7 @@ def plot_figure(data: list, flag: str):
     if not data:
         raise ValueError("Data list is empty.")
 
-    data = np.asfarray(data)
+    data = np.asarray(data, dtype=np.float64)
     time = data[:, 0]
     label1 = ['Total Energy', 'Potential Energy', 'Kinetic Energy']
     label2 = ['$\\Delta$ Total Energy', '$\\Delta$ Potential Energy', '$\\Delta$ Kinetic Energy']
