@@ -185,7 +185,7 @@ def parse_MOVEMENT_file(filename: Path, row_marks: np.ndarray) -> np.ndarray:
                 elif isinstance(row_marks, np.ndarray) and current_line == row_marks.max():
                     collecting = False
 
-    time_array = np.asfarray(time_list) 
+    time_array = np.asarray(time_list, dtype=np.float64)
     data_array = np.array(data_list).reshape(time_array.size, -1, 4)
 
     atomic_number_array = data_array[0,:,0][row_marks-1].astype(int)
@@ -333,7 +333,7 @@ def main():
     
     try:
         if len(element_list) <= 8:
-            plot_force(plot, time_array, np.asfarray(data_array), row_marks, element_list)
+            plot_force(plot, time_array, np.asarray(data_array, dtype=np.float64), row_marks, element_list)
         else:
             raise ValueError("Too many elements to plot.")
     except ValueError as e:
