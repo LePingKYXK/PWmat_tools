@@ -13,9 +13,9 @@ parser = ap.ArgumentParser(add_help=True,
                            description="""
                            Author:   Dr. Huan Wang,
                            Email:    huan.wang@whut.edu.cn,
-                           Version:  v1.5,
+                           Version:  v2.0,
                            Date:     August 12, 2024
-                           Modified: February 24, 2025""")
+                           Modified: August 12, 2025""")
 parser.add_argument("-f", "--filename",
                     metavar="<PWmat MDSTEPS file>",
                     type=Path,
@@ -142,10 +142,10 @@ def plot_figure(data: list, flag: str):
 
     tddft_time = Path.cwd() / "OUT.TDDFT_TIME"
     if tddft_time.is_file():
-        fig  = plt.figure(figsize=(8, 10), layout="constranined")
+        fig  = plt.figure(figsize=(8, 10))
         gs = GridSpec(5, 2, figure=fig)
     else:
-        fig  = plt.figure(figsize=(8, 8), layout="constranined")
+        fig  = plt.figure(figsize=(8, 8))
         gs = GridSpec(4, 2, figure=fig)
 
     # Panel 1 to 3, (Total Energy, Potential Energy, and Kinetic vs time)
@@ -169,14 +169,20 @@ def plot_figure(data: list, flag: str):
         plot_variable_vs_time(time, data[:, tag], '-k', label, ax)
     
     # Panel  7, Laser pulse vs Time
-    laser = np.genfromtxt("OUT.TDDFT_TIME")
-    ax7 = fig.add_subplot(gs[4, :])
-    ax7.plot(laser[:, 0], laser[:, 1], "dodgerblue", label="Laser pulse", alpha=0.6)
-    ax7.set_xlim([0, time.max()])
-    ax7.set_xlabel("Time (fs)")
-    ax7.set_ylabel("Laser Intensity (a.u.)")
-    ax7.legend()
-    
+    if tddft_time.is_file():
+        try:
+            laser = np.genfromtxt("OUT.TDDFT_TIME")
+            ax7 = fig.add_subplot(gs[4, :])
+            ax7.plot(laser[:, 0], laser[:, 1], "dodgerblue", label="Laser pulse", alpha=0.6)
+            ax7.set_xlim([0, time.max()])
+            ax7.set_xlabel("Time (fs)")
+            ax7.set_ylabel("Laser Intensity (a.u.)")
+            ax7.legend()
+        except Exception as e:
+            ax7.text(0.5, 0.5, f"Data Error: {str(e)})",
+                     ha="center", va="center", color="red")
+            ax7.set_title("TDDFT_TIME - Load Failed", color="red")
+
     fig.tight_layout()
     plt.show()
 
