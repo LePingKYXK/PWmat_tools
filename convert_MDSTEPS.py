@@ -123,6 +123,8 @@ def plot_figure(data: list, flag: str):
     ----------
     data : list
         A list of lists contains data in the MDSTEPS file, line by line.
+    flag : str
+        A string flag represents the "Average Temperature".
 
     Returns
     -------
@@ -138,8 +140,13 @@ def plot_figure(data: list, flag: str):
     label2 = ['$\\Delta$ Total Energy', '$\\Delta$ Potential Energy', '$\\Delta$ Kinetic Energy']
     colors = ['-k', '-b', '-r']
 
-    fig  = plt.figure(figsize=(8, 10))
-    gs = GridSpec(5, 2)
+    tddft_time = Path.cwd() / "OUT.TDDFT_TIME"
+    if tddft_time.is_file():
+        fig  = plt.figure(figsize=(8, 10), layout="constranined")
+        gs = GridSpec(5, 2, figure=fig)
+    else:
+        fig  = plt.figure(figsize=(8, 8), layout="constranined")
+        gs = GridSpec(4, 2, figure=fig)
 
     # Panel 1 to 3, (Total Energy, Potential Energy, and Kinetic vs time)
     for i, (label, color) in enumerate(zip(label1, colors)):
