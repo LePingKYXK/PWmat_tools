@@ -58,10 +58,15 @@ def parse_arguments():
         help='List of element symbols to load. Example: -e C Si'
     )
     parser.add_argument(
-        '-mf', '--max-frames',
-        type=int,
-        help='Maximum number of frames to read.'
-    )
+        '-fs', '--frame-start', 
+        type=int, default=0,
+        help='First frame to read (0-based).'
+        )
+    parser.add_argument(
+        '-fe', '--frame-end', 
+        type=int, default=None,
+        help='Last frame to read (exclusive). If not given, read until end.'
+        )
     return parser.parse_args()
 
 def kabsch_rmsd(ref: np.ndarray, mob: np.ndarray) -> float:
@@ -202,7 +207,8 @@ def main():
         file_path=args.file,
         atom_indices=args.indices,
         element_filter=args.elements,
-        max_frames=args.max_frames
+        frame_start=args.frame_start,
+        frame_end=args.frame_end
     )
     
     element_counts = Counter(data.elements)
