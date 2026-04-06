@@ -8,7 +8,7 @@ import pandas as pd
 import textwrap
 from collections import Counter
 from typing import Tuple, List, Dict
-from MovementParser import MovementData
+from parse_movement import MovementParser
 from pathlib import Path
 try:
     from pymatgen.core import Element
@@ -58,12 +58,12 @@ def parse_arguments():
         help='List of element symbols to load. Example: -e C Si'
     )
     parser.add_argument(
-        '-fs', '--frame-start', 
+        '-sf', '--start_frame', 
         type=int, default=0,
         help='First frame to read (0-based).'
         )
     parser.add_argument(
-        '-fe', '--frame-end', 
+        '-ef', '--end_frame', 
         type=int, default=None,
         help='Last frame to read (exclusive). If not given, read until end.'
         )
@@ -97,12 +97,12 @@ def kabsch_rmsd(ref: np.ndarray, mob: np.ndarray) -> float:
     return np.sqrt((diff ** 2).sum() / ref.shape[0])
 
 
-def calculate_rmsd_from_parsed_data(data: MovementData) -> Tuple[np.ndarray, List[str]]:
+def calculate_rmsd_from_parsed_data(data: MovementParser) -> Tuple[np.ndarray, List[str]]:
     """
     Calculate RMSD using parsed data from MovementParser.
 
     Arguments:
-        data (MovementData):            Data Object created by MovementParser.
+        data (MovementParser):            Data Object created by MovementParser.
         Tuple[np.ndarray, List[str]]:   A tuple containing RMSD data and a list of unique elements. 
                                       The array shape is [n_frames-1, 1 + n_elements], 
                                       where the first column is the total RMSD, 
@@ -203,12 +203,12 @@ def main():
     
     # --- Parse data using MovementParser module ---
     # Pass arguments to MovementParser
-    data = MovementData.parse_file(
+    data = MovementParser.parse(
         file_path=args.file,
         atom_indices=args.indices,
         element_filter=args.elements,
-        frame_start=args.frame_start,
-        frame_end=args.frame_end
+        start_frame=args.start_frame,
+        end_frame=args.end_frame
     )
     
     element_counts = Counter(data.elements)
