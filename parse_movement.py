@@ -329,7 +329,7 @@ class MovementParser:
 
     @staticmethod
     def _read_selected_block(f, total_atoms: int, selected_indices: List[int],
-                            data_cols: int = 3, skip_cols: int = 1,
+                            data_cols: int=3, skip_cols: int=1,
                             return_atomic_numbers: bool = False) -> Union[np.ndarray, Tuple[np.ndarray, List[int]]]:
         """
         Read a block (Position/Force/Velocity) for selected atoms.
