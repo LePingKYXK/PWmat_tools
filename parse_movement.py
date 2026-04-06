@@ -1,16 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-High-performance parser for PWmat MOVEMENT trajectory files.
-Optimized for speed, supports selective atom loading and frame range.
-No redundant file reopening.
-"""
-
 import argparse as ap
 import numpy as np
 import re
 import time
+import textwrap
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
@@ -20,13 +15,18 @@ try:
 except ImportError:
     raise ImportError("pymatgen is required. Install via: pip install pymatgen")
 
+
 class MyFormatter(ap.RawDescriptionHelpFormatter, ap.ArgumentDefaultsHelpFormatter):
     pass
 
-
 def parse_arguments():
     parser = ap.ArgumentParser(formatter_class=MyFormatter,
-                               description="High-performance MOVEMENT file parser")
+                               description=textwrap.dedent(
+    """High-performance parser for PWmat MOVEMENT trajectory files.
+    Supports selective atom indices and frame range loading for faster parsing.
+    Author:
+        Dr. Huan Wang <huan.wang@whut.edu.cn>
+    """))
     parser.add_argument("-f", "--file", 
                         type=Path, 
                         default=Path.cwd() / "MOVEMENT",
@@ -75,7 +75,7 @@ class MovementParser:
     @classmethod
     def parse(
         cls,
-        filepath: Path,
+        file_path: Path,
         atom_indices: Optional[List[int]] = None,
         start_frame: int = 0,
         end_frame: Optional[int] = None,
@@ -85,7 +85,7 @@ class MovementParser:
         Parse MOVEMENT file with optional atom/frame filtering.
 
         Args:
-            filepath: Path to MOVEMENT file.
+            file_path: Path to MOVEMENT file.
             atom_indices: 0‑based indices to extract (duplicates removed, sorted).
             start_frame: First frame to read (0‑based, inclusive).
             end_frame: Last frame to read. None means read all.
@@ -98,7 +98,7 @@ class MovementParser:
             raise ValueError("Cannot specify both atom_indices and element_filter")
 
         start_time = time.perf_counter()
-        print(f"Parsing {filepath} ...")
+        print(f"Parsing {file_path} ...")
 
         # Process atom indices: remove duplicates and sort
         if atom_indices is not None:
@@ -128,7 +128,7 @@ class MovementParser:
         max_frame_to_read = None if end_frame is None else end_frame - 1
 
         try:
-            with open(filepath, 'r') as f:
+            with open(file_path, 'r') as f:
                 line = f.readline()
                 while line:
                     stripped = line.strip()
@@ -404,13 +404,11 @@ class MovementParser:
         return indices
 
 
-
-
 def main():
     args = parse_arguments()
     try:
         data = MovementParser.parse(
-            filepath=args.file,
+            file_path=args.file,
             atom_indices=args.indices,
             element_filter=args.elements,
             start_frame=args.start_frame,
