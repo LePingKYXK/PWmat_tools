@@ -36,16 +36,6 @@ def parse_arguments():
         help="Input trajectory file with PWmat MOVEMENT format."
     )
     parser.add_argument(
-        "-o", "--output", 
-        type=Path, default=Path.cwd() / "RMSD.csv",
-        help="Output file with .csv format."
-    )
-    parser.add_argument(
-        "-p", "--plot", 
-        action="store_true",
-        help="Show plot window and save figure as .png format."
-    )
-    parser.add_argument(
         '-id', '--indices',
         type=int,
         nargs='+',
@@ -67,6 +57,16 @@ def parse_arguments():
         type=int, default=None,
         help='Last frame to read (exclusive). If not given, read until end.'
         )
+    parser.add_argument(
+        "-o", "--output", 
+        type=Path, default=Path.cwd() / "RMSD.csv",
+        help="Output file with .csv format."
+    )
+    parser.add_argument(
+        "-p", "--plot", 
+        action="store_true",
+        help="Show plot window and save figure as .png format."
+    )
     return parser.parse_args()
 
 def kabsch_rmsd(ref: np.ndarray, mob: np.ndarray) -> float:
