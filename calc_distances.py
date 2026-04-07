@@ -39,7 +39,7 @@ def parse_arguments():
                         type=int, nargs='+', required=True,
                         help="Space-separated atom indices (0-based). Must be even number of indices to form pairs.")
     parser.add_argument("-p", "--plot", 
-                        action="store_true", #default=True,
+                        action="store_true",
                         help="Plot the distances")
     parser.add_argument("-o", "--output", 
                         type=Path, default=Path("distances.csv"),
@@ -51,10 +51,9 @@ def parse_arguments():
 def validate_and_prepare_indices(raw_indices: List[int]) -> Tuple[List[int], List[Tuple[int, int]]]:
     """
     Checking the input indices and preparing data.
-    逻辑：
     1. Check if the number of indices is even.
-    2. 生成去重后的索引列表 (select_id)，用于读取数据。
-    3. 生成成对的索引列表 (pairs)，用于计算距离。
+    2. Generate a deduplicated index list (select_id) for parsing MOVEMENT file.
+    3. Generate a list of index pairs (pairs) for calculating distances.
     
     Args:
         raw_indices:    input indices, can be repeated and must be even number.
@@ -64,15 +63,14 @@ def validate_and_prepare_indices(raw_indices: List[int]) -> Tuple[List[int], Lis
         pairs:          list of tuple, pairs of indices for calculating distance.
     """
     if len(raw_indices) % 2 != 0:
-        raise ValueError("输入的原子索引数量必须是偶数，以便两两配对计算距离。请检查输入。")
+        raise ValueError(
+            f"""The number of atomic indices entered must be even so that pairs can be matched to calculate distances. 
+            Please check your input.""")
     
     max_idx = max(raw_indices)
     select_ids = list(range(max_idx + 1))
     
-    pairs = []
-    for i in range(0, len(raw_indices), 2):
-        pair = (raw_indices[i], raw_indices[i+1])
-        pairs.append(pair)
+    pairs = list(zip(raw_indices[0::2], raw_indices[1::2]))
     
     return select_ids, pairs
 
@@ -80,25 +78,22 @@ def calculate_pbc_distance_frac(frac_coords1: np.ndarray,
                                 frac_coords2: np.ndarray, 
                                 lattice_matrix: np.ndarray) -> np.ndarray:
     """
-    计算考虑周期性边界条件 (PBC) 的距离。
-    使用最小镜像法。
+    Calculate the distance taking periodic boundary conditions (PBC) into account.
     
     Args:
-        frac_coords1: 形状 (n_frames, 3) 或 (3,)
-        frac_coords2: 形状 (n_frames, 3) 或 (3,)
-        lattice_matrix: 形状 (n_frames, 3, 3)
+        frac_coords1:   shape (n_frames, 3) or (3,)
+        frac_coords2:   shape (n_frames, 3) or (3,)
+        lattice_matrix: shape (n_frames, 3, 3)
     
     Returns:
-        distances: 形状 (n_frames,) 的距离数组
+        distances: output data array, shape (n_frames,)
     """
     delta_frac = frac_coords1 - frac_coords2
     
     delta_frac = delta_frac - np.round(delta_frac)
     
-    # 将分数坐标差转换为笛卡尔坐标差
+    # convert fractional coordinates to cartesian coordinates
     # delta_cartesian = delta_frac @ lattice.T
-    # 由于 lattice 是 (n_frames, 3, 3)，需要进行批量矩阵乘法
-    # 结果形状: (n_frames, 3)
     delta_cartesian = np.einsum('fij,fj->fi', lattice_matrix, delta_frac)
     
     distances = np.linalg.norm(delta_cartesian, axis=1)
@@ -145,7 +140,7 @@ def main():
 
     data = MovementParser.parse(
         file_path=args.file,
-        atom_indices=select_ids, # 关键点：读取范围
+        atom_indices=select_ids,
         start_frame=args.start_frame,
         end_frame=args.end_frame
     )
@@ -173,7 +168,7 @@ def main():
         
         results[col_name] = distances
     
-    # 5. save data to CSV
+    # 5. save data to CSV file
     df_data = {"Frame": frames}
     df_data.update(results)
     df = pd.DataFrame(df_data)
