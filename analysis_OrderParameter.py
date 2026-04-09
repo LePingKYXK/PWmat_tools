@@ -9,7 +9,7 @@ import textwrap
 from pathlib import Path
 from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
-from typing import List
+from typing import List, Tuple
 try:
     from parse_movement import add_parser_args, MovementParser
 except ImportError:
@@ -41,27 +41,38 @@ def parse_arguments():
     parser.add_argument(
         "-cid", "--center-idx", 
         type=int, required=True,
-        help="Index (0-based) of the central Ta atom of the star-of-David"
+        help="Index (0-based) of the central Ta atom of the star-of-David",
         )
     parser.add_argument(
         "-sid", "--surrounding-idx", 
         type=str, nargs='+', required=True,
-        help="Indices of 12 surrounding Ta atoms (0-based), e.g., '0-11' or '1 2 3 4 5 6 7 8 9 10 11 12'"
+        help="Indices of 12 surrounding Ta atoms (0-based), e.g., '0-11' or '1 2 3 4 5 6 7 8 9 10 11 12'",
         )
     parser.add_argument(
         "--ref-distance",
         type=float, 
-        help="Reference Ta-Ta distance in undistorted lattice (Å)"
+        help="Reference Ta-Ta distance in undistorted lattice (Å)",
+        )
+    parser.add_argument(
+        "--fit-model", 
+        type=str, default='damped_osc',
+        choices=['exp', 'damped_osc'],
+        help="Fit model: 'exp' (exponential decay) or 'damped_osc' (damped oscillation)",
+        )
+    parser.add_argument(
+        "--fit-threshold", 
+        type=float, default=0.1,
+        help="Threshold for fitting range (fit where C(t) > threshold)",
         )
     parser.add_argument(
         "-o", "--output",
         type=Path, default=Path("cdw_analysis"),
-        help="Output base name (without extension)"
+        help="Output base name (without extension)",
         )
     parser.add_argument(
         "-p", "--plot", 
         action="store_true",
-        help="Show plot windows interactively"
+        help="Show plot windows interactively",
         )
     return parser.parse_args()
 
@@ -127,30 +138,75 @@ def autocorrelation(x: np.ndarray, normalize: bool = True) -> tuple:
         corr = corr / corr[0]
     return np.arange(n), corr
 
-def fit_exponential_decay(t: np.ndarray, corr: np.ndarray) -> float:
+def exp_decay(t, tau):
+    """Exponential decay model."""
+    return np.exp(-t / tau)
+
+def damped_osc(t, A, tau, T, phi):
+    """Damped oscillation model: A * exp(-t/tau) * cos(2π t/T + φ)"""
+    return A * np.exp(-t / tau) * np.cos(2 * np.pi * t / T + phi)
+
+def fit_autocorrelation(t, corr, model='exp', threshold=0.1):
     """
-    Fit C(t) = exp(-t/tau) for t where corr > 0.1
-    Returns tau (fs) if successful, else None.
+    Fit autocorrelation function.
+    Returns: (tau, period, fit_params_dict)
+    For exp: tau only.
+    For damped_osc: tau, period, amplitude, phase.
+    If fit fails, returns None for missing parameters.
     """
-    positive = corr > 0.1
+    # Determine fitting range: t where corr > threshold
+    positive = corr > threshold
     if not np.any(positive):
-        return None
+        return None, None, {}
     last_idx = np.where(positive)[0][-1]
     t_fit = t[:last_idx+1]
     corr_fit = corr[:last_idx+1]
-    try:
-        popt, _ = curve_fit(lambda t, tau: np.exp(-t/tau), t_fit, corr_fit, p0=[10.0])
-        return popt[0]
-    except:
-        return None
 
+    if model == 'exp':
+        try:
+            popt, _ = curve_fit(exp_decay, t_fit, corr_fit, p0=[10.0])
+            tau = popt[0]
+            return tau, None, {'tau': tau}
+        except:
+            return None, None, {}
+
+    elif model == 'damped_osc':
+        # Estimate initial parameters
+        # A ~ 1 (since normalized corr starts at 1)
+        A0 = 1.0
+        # tau: time to drop to 1/e ~ 0.3679
+        # find first time where corr < 0.3679
+        tau_guess = 10.0
+        idx_e = np.where(corr < 0.3679)[0]
+        if len(idx_e) > 0:
+            tau_guess = t[idx_e[0]]
+        # Period: find first positive peak after t>0
+        peaks, _ = find_peaks(corr, height=0.2)
+        if len(peaks) >= 2:
+            T_guess = t[peaks[1]] - t[peaks[0]]
+        else:
+            T_guess = 20.0
+        phi_guess = 0.0
+        try:
+            popt, _ = curve_fit(damped_osc, t_fit, corr_fit,
+                                p0=[A0, tau_guess, T_guess, phi_guess],
+                                bounds=([0, 0, 0, -np.pi], [2, np.inf, np.inf, np.pi]))
+            A, tau, T, phi = popt
+            return tau, T, {'A': A, 'tau': tau, 'T': T, 'phi': phi}
+        except:
+            # Fallback to exponential fit
+            print("Damped oscillation fit failed. Falling back to exponential fit.")
+            tau, _, _ = fit_autocorrelation(t, corr, model='exp', threshold=threshold)
+            return tau, None, {'tau': tau}
+    
 def plot_results(times: np.ndarray, phi: float, tau_lags: np.ndarray, corr: np.ndarray, 
-                 tau: float, avg_period: float, output_png: str, show_plot: bool) -> None:
+                 tau: float, period: float, fit_params, model: str, 
+                 output_png: str, show_plot: bool) -> None:
     """Create and save the figure with two subplots."""
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
     # Top: order parameter vs time
-    ax1.plot(times, phi, 'b-', lw=1)
+    ax1.plot(times, phi, 'b-', lw=1, label='Radial Order Parameter')
     ax1.set_xlim(times[0], times[-1])
     ax1.set_xlabel('Time (fs)')
     ax1.set_ylabel('Radial contraction φ')
@@ -158,13 +214,22 @@ def plot_results(times: np.ndarray, phi: float, tau_lags: np.ndarray, corr: np.n
     ax1.grid(alpha=0.3)
 
     # Bottom: autocorrelation
-    ax2.plot(tau_lags, corr, 'r-', lw=1.5)
-    if tau is not None:
-        ax2.axvline(tau, color='g', linestyle='--', label=f'τ = {tau:.1f} fs')
+    ax2.plot(tau_lags, corr, 'r-', lw=1.5, label='Autocorrelation')
+    if model == 'exp' and tau is not None:
         t_fit = np.linspace(0, tau_lags[-1], 200)
         ax2.plot(t_fit, np.exp(-t_fit/tau), 'g:', alpha=0.7)
-    if avg_period:
-        ax2.axvline(avg_period, color='m', linestyle='--', label=f'Period ≈ {avg_period:.1f} fs')
+        # ax2.axvline(tau, color='g', linestyle='--', label=f'τ = {tau:.1f} fs')
+
+    elif model == 'damped_osc' and period is not None:
+        t_fit = np.linspace(0, tau_lags[-1], 200)
+        A = fit_params.get('A', 1.0)
+        T = fit_params.get('T', period)
+        phi_phase = fit_params.get('phi', 0.0)
+        y_fit = damped_osc(t_fit, A, tau, T, phi_phase)
+        ax2.plot(t_fit, y_fit, 'g--', label=f'Damped osc: τ = {tau:.1f} fs, T = {T:.1f} fs')
+
+    if period:
+        ax2.axvline(period, color='m', linestyle='--', label=f'Period ≈ {period:.1f} fs')
     ax2.set_xlim(times[0], times[-1])
     ax2.set_xlabel('Lag time (fs)')
     ax2.set_ylabel('Autocorrelation C(t)')
@@ -221,10 +286,12 @@ def main():
     dt = times[1] - times[0] if len(times) > 1 else 1.0
     tau_lags = lags * dt
 
-    # Fit decay
-    tau = fit_exponential_decay(tau_lags, corr)
-
-    # Find oscillation periods
+    # Fit autocorrelation
+    tau, period, fit_params = fit_autocorrelation(tau_lags, corr,
+                                                  model=args.fit_model,
+                                                  threshold=args.fit_threshold)
+    
+    # Find oscillation periods from peaks (for reference, regardless of fit)
     peaks, _ = find_peaks(corr, height=0.2)
     periods = []
     if len(peaks) >= 2:
@@ -232,6 +299,10 @@ def main():
         avg_period = np.mean(periods)
     else:
         avg_period = None
+
+    # Use fitted period if available and more reliable
+    if period is not None:
+        avg_period = period
 
     # Save data
     output_base = args.output
@@ -245,7 +316,7 @@ def main():
     pd.DataFrame({'lag_fs': tau_lags, 'autocorr': corr}).to_csv(corr_csv, index=False)
 
     # Plot
-    plot_results(times, phi, tau_lags, corr, tau, avg_period, png_path, args.plot)
+    plot_results(times, phi, tau_lags, corr, tau, avg_period, fit_params, args.fit_model, png_path, args.plot)
 
     # Print summary
     print("\n" + "="*50)
@@ -253,13 +324,15 @@ def main():
     print("="*50)
     print(f"Time range: {times[0]:.2f} – {times[-1]:.2f} fs")
     print(f"Mean φ: {np.mean(phi):.4f} ± {np.std(phi):.4f}")
-    if tau:
-        print(f"Coherence time τ (exponential decay): {tau:.2f} fs")
+
+    if tau is not None:
+        print(f"Coherence time τ: {tau:.2f} fs")
     else:
         print("Coherence time could not be reliably fitted.")
     if avg_period:
         print(f"Mean oscillation period: {avg_period:.2f} fs")
-        print(f"   Individual periods: {', '.join(f'{p:.2f}' for p in periods)}")
+        if len(periods) > 1:
+            print(f"   Individual periods: {', '.join(f'{p:.2f}' for p in periods)}")
     else:
         print("No clear oscillatory behavior detected.")
     print(f"Output files: {phi_csv}, {corr_csv}, {png_path}")
