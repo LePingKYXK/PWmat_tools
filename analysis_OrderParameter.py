@@ -87,21 +87,28 @@ def parse_indices_range(s: str) -> List[int]:
     else:
         return [int(s)]
     
-def compute_radial_contraction(center_pos: np.ndarray, surrounding_pos: np.ndarray, 
-                               ref_dist: float) -> float:
+def compute_radial_contraction(center_frac: np.ndarray, surrounding_frac: np.ndarray, 
+                               lattice: np.ndarray, ref_dist: float) -> float:
     """
     Compute radial contraction order parameter.
 
     Arguements:
-        center_pos:         shape (3,) array of central atom Cartesian coordinates
-        surrounding_pos:    shape(12,3) array of surrounding atom positions
+        center_frac:        shape (3,) array of central atom fractional coordinates
+        surrounding_frac:   shape(12,3) array of surrounding atom fractional coordinates
         ref_dist:           reference distance (Å) in undistorted lattice
     
     Returns: 
         phi:                (mean_distance - ref_dist) / ref_dist
                         Negative means contraction (ordered), zero means disordered.
     """
-    distances = np.linalg.norm(surrounding_pos - center_pos, axis=1)
+    # Fractional differences
+    diff_frac = surrounding_frac - center_frac
+    # Minimum image convention
+    diff_frac -= np.round(diff_frac)
+    # Convert to Cartesian coordinates
+    diff_cart = diff_frac @ lattice.T
+    # calculate distances
+    distances = np.linalg.norm(diff_cart, axis=-1)
     mean_dist = np.mean(distances)
     phi = (mean_dist - ref_dist) / ref_dist
     return phi
@@ -180,15 +187,16 @@ def main():
     for item in args.surrounding_idx:
         surrounding_list.extend(parse_indices_range(item))
 
-    if len(surrounding_list) != 12:
-        raise ValueError(f"Expected 12 surrounding atoms, got {len(surrounding_list)}")
+#    if len(surrounding_list) != 12:
+#        raise ValueError(f"Expected 12 surrounding atoms, got {len(surrounding_list)}")
     all_indices = [args.center_idx] + surrounding_list
+    print(f"======= Selected atom indices: {all_indices} =======")
 
     # Load trajectory
     print("Loading trajectory...")
     data = MovementParser.parse(
         file_path=args.file,
-        atom_indices=all_indices,
+        atom_indices=np.arange(max(all_indices)+1),
         element_filter=None,
         start_time=args.start_time,
         end_time=args.end_time,
@@ -200,10 +208,11 @@ def main():
     # Compute order parameter for each frame
     phi = np.zeros(data.n_frames)
     for i in range(data.n_frames):
-        coords = data.coordinate[i]   # (13, 3)
-        center = coords[0]
-        surrounding = coords[1:]
-        phi[i] = compute_radial_contraction(center, surrounding, args.ref_distance)
+        frac_coords = data.position[i]
+        lattice = data.lattice[i]
+        center = frac_coords[all_indices[0]]
+        surrounding = frac_coords[all_indices[1:]]
+        phi[i] = compute_radial_contraction(center, surrounding, lattice, args.ref_distance)
 
     times = data.iter_time
 
