@@ -16,41 +16,57 @@ except ImportError:
     raise ImportError("pymatgen is required. Install via: pip install pymatgen")
 
 
-class MyFormatter(ap.RawDescriptionHelpFormatter, ap.ArgumentDefaultsHelpFormatter):
+class MyFormatter(ap.RawDescriptionHelpFormatter, 
+                  ap.ArgumentDefaultsHelpFormatter):
     pass
 
-def parse_arguments():
-    parser = ap.ArgumentParser(formatter_class=MyFormatter,
-                               description=textwrap.dedent(
-    """High-performance parser for PWmat MOVEMENT trajectory files.
-    Supports selective atom indices and frame range loading for faster parsing.
-    Author:
-        Dr. Huan Wang <huan.wang@whut.edu.cn>
-    """))
+def add_parser_args(parser):
     parser.add_argument("-f", "--file", 
                         type=Path, 
                         default=Path.cwd() / "MOVEMENT",
                         help="Path to MOVEMENT file")
-    parser.add_argument("-id", "--indices", 
-                        type=int, nargs='+',
-                        help="Space-separated 0-based atom indices to extract")
     parser.add_argument("-e", "--elements", 
                         type=str, nargs='+',
                         help="Element symbols to extract (e.g., C Si)")
-    parser.add_argument("-sf", "--start-frame", 
-                        type=int, default=0,
-                        help="First frame index (0-based, inclusive, e.g., 30)")
+
+    # These two arguments are mutually exclusived, start of time or frame based.
+    time_frame_group = parser.add_mutually_exclusive_group()
+    time_frame_group.add_argument("-st", "--start-time", 
+                                  type=float, default=None,
+                                  help="Start time (fs, inclusive) – requires --end-time as well")
+    time_frame_group.add_argument("-sf", "--start-frame", 
+                                  type=int, default=None,
+                                  help="Start frame index (0‑based, inclusive) – requires --end-frame as well")
+
+    # These arguments are mutually exclusived, end of time or frame based.
+    parser.add_argument("-et", "--end-time", 
+                        type=float, default=None,
+                        help="End time (fs, inclusive) – only valid with --start-time")
     parser.add_argument("-ef", "--end-frame", 
                         type=int, default=None,
-                        help="Last frame index (e.g. 200)")
-    return parser.parse_args()
+                        help="End frame index (0‑based, inclusive) – only valid with --start-frame")
 
+def parse_arguments():
+    parser = ap.ArgumentParser(
+        formatter_class=MyFormatter,
+        description=textwrap.dedent("""
+        High-performance parser for PWmat MOVEMENT trajectory files.
+        Supports selective atom indices and either time‑based or frame‑based range loading.
+        Author:
+            Dr. Huan Wang <huan.wang@whut.edu.cn>
+        """)
+    )
+    add_parser_args(parser)
+    parser.add_argument("-id", "--indices", 
+                    type=int, nargs='+',
+                    help="Space-separated 0-based atom indices to extract")
+    return parser.parse_args()
 
 @dataclass
 class MovementData:
     num_atoms: int                 # total atoms per frame
     n_frames: int                  # number of frames loaded
-    iter_time: np.ndarray          # (n_frames,) iteration times
+    iter_time: np.ndarray          # (n_frames,) iteration times (real time)
     lattice: np.ndarray            # (n_frames, 3, 3)
     elements: np.ndarray           # (n_selected,) element symbols
     position: np.ndarray           # fractional, (n_frames, n_selected, 3)
@@ -58,7 +74,6 @@ class MovementData:
     force: np.ndarray              # (n_frames, n_selected, 3)
     velocity: np.ndarray           # (n_frames, n_selected, 3)
     selected_indices: List[int]    # 0‑based indices of selected atoms
-
 
 class MovementParser:
     # Pre-compiled regex patterns (class-level to avoid recompilation)
@@ -77,27 +92,53 @@ class MovementParser:
         cls,
         file_path: Path,
         atom_indices: Optional[List[int]] = None,
-        start_frame: int = 0,
-        end_frame: Optional[int] = None,
         element_filter: Optional[Union[str, List[str]]] = None,
+        start_time: Optional[float] = None,
+        end_time: Optional[float] = None,
+        start_frame: Optional[int] = None,
+        end_frame: Optional[int] = None,
     ) -> MovementData:
         """
-        Parse MOVEMENT file with optional atom/frame filtering.
+        Parse MOVEMENT file with optional atom filtering and frame/time selection.
 
         Args:
             file_path: Path to MOVEMENT file.
             atom_indices: 0‑based indices to extract (duplicates removed, sorted).
-            start_frame: First frame to read (0‑based, inclusive).
-            end_frame: Last frame to read. None means read all.
             element_filter: Element symbol or list of symbols; mutually exclusive with atom_indices.
+            start_time, end_time: Time range (inclusive, unit from file).
+            start_frame, end_frame: Frame index range (0‑based, inclusive).
 
-        Returns:
-            MovementData object.
+        Note: Exactly one of (start_time, start_frame) should be provided (or neither).
+              If neither is provided, all frames are loaded.
         """
+        # Validate arguments and determine frame/time filtering strategy
+        if (start_time is not None) != (end_time is not None):
+            raise ValueError("Both start_time and end_time must be provided together")
+        if (start_frame is not None) != (end_frame is not None):
+            raise ValueError("Both start_frame and end_frame must be provided together")
+        if start_time is not None and start_frame is not None:
+            raise ValueError("Cannot specify both time range and frame range")
+
+        # Set conditions for frame/time filtering
+        use_time_filter = start_time is not None
+        if use_time_filter:
+            t_min = start_time
+            t_max = end_time
+            if t_min > t_max:
+                raise ValueError("start_time must be <= end_time")
+        elif start_frame is not None:
+            f_min = start_frame
+            f_max = end_frame
+            if f_min > f_max:
+                raise ValueError("start_frame must be <= end_frame")
+        else:
+            # Read all frames
+            pass
+
         if atom_indices is not None and element_filter is not None:
             raise ValueError("Cannot specify both atom_indices and element_filter")
 
-        start_time = time.perf_counter()
+        start_perf = time.perf_counter()
         print(f"Parsing {file_path} ...")
 
         # Process atom indices: remove duplicates and sort
@@ -121,11 +162,12 @@ class MovementParser:
         velocities = []
 
         num_atoms_total = None
-        atomic_numbers_all = []   # store atomic numbers of all atoms (only if needed)
-        selected_atomic_numbers = []  # atomic numbers of selected atoms (for -id case)
+        atomic_numbers_all = []         # store atomic numbers of all atoms (only if needed)
+        selected_atomic_numbers = []    # atomic numbers of selected atoms
+        selected_indices_final = None
         frame_abs = 0
         current_frame = None
-        max_frame_to_read = None if end_frame is None else end_frame - 1
+        atomic_numbers_loaded = False   # flag to indicate if we already read atomic numbers for selected atoms
 
         try:
             with open(file_path, 'r') as f:
@@ -147,11 +189,11 @@ class MovementParser:
                                 pass
                             elif selected_indices is None:
                                 # No filter: select all atoms
-                                selected_indices = list(range(num_atoms_total))
+                                selected_indices_final = list(range(num_atoms_total))
                             else:
                                 # Validate indices
-                                selected_indices = [i for i in selected_indices if 0 <= i < num_atoms_total]
-                                if not selected_indices:
+                                selected_indices_final = [i for i in selected_indices if 0 <= i < num_atoms_total]
+                                if not selected_indices_final:
                                     raise ValueError("No valid atom indices after filtering")
                         else:
                             # Verify atom count consistency
@@ -167,11 +209,22 @@ class MovementParser:
                             'velocity': None,
                         }
 
-                        # Check if this frame is within requested range
-                        if start_frame <= frame_abs <= (max_frame_to_read if max_frame_to_read is not None else float('inf')):
+                        # Determine if this frame should be kept
+                        keep_frame = False
+                        if use_time_filter:
+                            if t_min <= iter_time <= t_max:
+                                keep_frame = True
+                        elif start_frame is not None:
+                            if f_min <= frame_abs <= f_max:
+                                keep_frame = True
+                        else:
+                            # No filter: keep all frames
+                            keep_frame = True
+
+                        if keep_frame:
                             iter_times.append(iter_time)
                         else:
-                            current_frame = None
+                            current_frame = None   # skip this frame
 
                         line = f.readline()
                         continue
@@ -196,27 +249,27 @@ class MovementParser:
                     # ---------- Position block ----------
                     if cls._PATTERNS['position'].match(stripped):
                         if current_frame is not None:
+                            # For element_filter case: need full first frame to get all atomic numbers
                             if need_full_first_frame and not atomic_numbers_all:
-                                # First frame: read all atoms to get atomic numbers and positions
                                 pos_all, atomic_numbers_all = cls._read_full_position_block(f, num_atoms_total)
-                                # Determine selected indices based on element filter
-                                selected_indices = cls._select_indices_by_elements(atomic_numbers_all, element_filter)
-                                # Store atomic numbers of selected atoms for later
-                                selected_atomic_numbers = [atomic_numbers_all[i] for i in selected_indices]
-                                # Extract selected positions
-                                current_frame['position'] = pos_all[selected_indices]
+                                selected_indices_final = cls._select_indices_by_elements(atomic_numbers_all, element_filter)
+                                selected_atomic_numbers = [atomic_numbers_all[i] for i in selected_indices_final]
+                                current_frame['position'] = pos_all[selected_indices_final]
+                                atomic_numbers_loaded = True
                             else:
-                                # Read only selected atoms, and also capture atomic numbers if this is the first frame
-                                if frame_abs == 0 and not selected_atomic_numbers:
+                                # For other cases: read only selected atoms
+                                # If we haven't loaded atomic numbers yet and this frame is selected, load them now
+                                if not atomic_numbers_loaded and selected_indices_final is not None:
                                     pos_data, atomic_nums = cls._read_selected_block(
-                                        f, num_atoms_total, selected_indices, data_cols=3, skip_cols=1,
+                                        f, num_atoms_total, selected_indices_final, data_cols=3, skip_cols=1,
                                         return_atomic_numbers=True
                                     )
                                     current_frame['position'] = pos_data
                                     selected_atomic_numbers = atomic_nums
+                                    atomic_numbers_loaded = True
                                 else:
                                     current_frame['position'] = cls._read_selected_block(
-                                        f, num_atoms_total, selected_indices, data_cols=3, skip_cols=1,
+                                        f, num_atoms_total, selected_indices_final, data_cols=3, skip_cols=1,
                                         return_atomic_numbers=False
                                     )
                         else:
@@ -237,7 +290,7 @@ class MovementParser:
                     if cls._PATTERNS['force'].match(stripped):
                         if current_frame is not None:
                             current_frame['force'] = cls._read_selected_block(
-                                f, num_atoms_total, selected_indices, data_cols=3, skip_cols=1,
+                                f, num_atoms_total, selected_indices_final, data_cols=3, skip_cols=1,
                                 return_atomic_numbers=False
                             )
                         else:
@@ -250,7 +303,7 @@ class MovementParser:
                     if cls._PATTERNS['velocity'].match(stripped):
                         if current_frame is not None:
                             current_frame['velocity'] = cls._read_selected_block(
-                                f, num_atoms_total, selected_indices, data_cols=3, skip_cols=1,
+                                f, num_atoms_total, selected_indices_final, data_cols=3, skip_cols=1,
                                 return_atomic_numbers=False
                             )
                             # All data for this frame collected
@@ -282,9 +335,9 @@ class MovementParser:
 
         # Post-process results
         n_frames = len(iter_times)
-        n_selected = len(selected_indices) if selected_indices else 0
+        n_selected = len(selected_indices_final) if selected_indices_final else 0
         if n_frames == 0:
-            raise RuntimeError("No frames loaded. Check file and frame range.")
+            raise RuntimeError("No frames loaded. Check file and filter range.")
 
         # Convert to numpy arrays
         lattice_arr   = np.array(lattices, dtype=np.float64)
@@ -298,21 +351,24 @@ class MovementParser:
         for i in range(n_frames):
             coordinate_arr[i] = position_arr[i] @ lattice_arr[i]
 
-        # Convert atomic numbers to element symbols (using already collected numbers)
+        # Convert atomic numbers to element symbols
         if selected_atomic_numbers:
             elements_arr = np.array([Element.from_Z(z).symbol for z in selected_atomic_numbers])
-        elif atomic_numbers_all and selected_indices:
-            # For element filter case, we already have atomic_numbers_all and selected_indices
-            elements_arr = np.array([Element.from_Z(atomic_numbers_all[i]).symbol for i in selected_indices])
+        elif atomic_numbers_all and selected_indices_final:
+            # For element filter case
+            elements_arr = np.array([Element.from_Z(atomic_numbers_all[i]).symbol for i in selected_indices_final])
         else:
-            # Should not happen
+            # Fallback: empty array (should not happen if loading succeeded)
             elements_arr = np.array([])
 
-        elapsed = time.perf_counter() - start_time
+        elapsed = time.perf_counter() - start_perf
         print(f"Loaded {n_frames} frames, {n_selected} atoms per frame in {elapsed:.2f} seconds.")
-        if frame_abs > 0 and end_frame is not None and end_frame > frame_abs:
-            print(f"Note: Requested end frame {end_frame} exceeds total frames {frame_abs}. "
-                  f"Read all {frame_abs} frames instead.")
+        if use_time_filter and iter_time_arr[-1] < t_max:
+            print(f"Note: Requested end time {t_max} exceeds last frame time {iter_time_arr[-1]}. "
+                  f"Read all frames up to {iter_time_arr[-1]} instead.")
+        elif not use_time_filter and start_frame is not None and frame_abs-1 < f_max:
+            print(f"Note: Requested end frame {f_max} exceeds total frames {frame_abs-1}. "
+                  f"Read all frames up to {frame_abs-1} instead.")
 
         return MovementData(
             num_atoms=num_atoms_total,
@@ -324,7 +380,7 @@ class MovementParser:
             coordinate=coordinate_arr,
             force=force_arr,
             velocity=velocity_arr,
-            selected_indices=selected_indices,
+            selected_indices=selected_indices_final if selected_indices_final else [],
         )
 
     @staticmethod
@@ -403,28 +459,51 @@ class MovementParser:
             raise ValueError(f"No atoms match elements {element_filter}")
         return indices
 
-
 def main():
     args = parse_arguments()
     try:
-        data = MovementParser.parse(
-            file_path=args.file,
-            atom_indices=args.indices,
-            element_filter=args.elements,
-            start_frame=args.start_frame,
-            end_frame=args.end_frame,
-        )
+        # choose filtering mode by start_time or start_frame
+        if args.start_time is not None:
+            start = args.start_time
+            end = args.end_time
+            data = MovementParser.parse(
+                file_path=args.file,
+                atom_indices=args.indices,
+                element_filter=args.elements,
+                start_time=start,
+                end_time=end,
+            )
+        elif args.start_frame is not None:
+            start = args.start_frame
+            end = args.end_frame
+            data = MovementParser.parse(
+                file_path=args.file,
+                atom_indices=args.indices,
+                element_filter=args.elements,
+                start_frame=start,
+                end_frame=end,
+            )
+        else:
+            # No filter: load all frames
+            data = MovementParser.parse(
+                file_path=args.file,
+                atom_indices=args.indices,
+                element_filter=args.elements,
+            )
         print("\n" + "="*60)
         print("MOVEMENT FILE PARSING RESULTS")
         print("="*60)
         print(f"Total atoms per frame: {data.num_atoms}")
         print(f"Frames loaded: {data.n_frames}")
+        if data.n_frames > 0:
+            print(f"Time range: {data.iter_time[0]:.3f} fs  to  {data.iter_time[-1]:.3f} fs")
         print(f"Selected atoms: {len(data.elements)}")
         print(f"Selected indices: {data.selected_indices}")
-        elem_counts = Counter(data.elements)
-        elem_str = ', '.join(f"{k}:{v}" for k, v in elem_counts.items())
-        print(f"Element distribution: {elem_str}")
-        if data.n_frames > 0:
+        if len(data.elements) > 0:
+            elem_counts = Counter(data.elements)
+            elem_str = ', '.join(f"{k}:{v}" for k, v in elem_counts.items())
+            print(f"Element distribution: {elem_str}")
+        if data.n_frames > 0 and len(data.elements) > 0:
             print(f"\nFirst frame example (first selected atom):")
             print(f"  Element:\n{data.elements[0]}")
             print(f"  Fractional position:\n{data.position[0,0]}")
@@ -437,7 +516,6 @@ def main():
         traceback.print_exc()
         import sys
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()
