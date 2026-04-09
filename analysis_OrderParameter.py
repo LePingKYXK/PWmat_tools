@@ -206,19 +206,19 @@ def plot_results(times: np.ndarray, phi: float, tau_lags: np.ndarray, corr: np.n
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
 
     # Top: order parameter vs time
-    ax1.plot(times, phi, 'b-', lw=1, label='Radial Order Parameter')
+    ax1.plot(times, phi, 'b-', lw=1, label='Radial contraction')
     ax1.set_xlim(times[0], times[-1])
     ax1.set_xlabel('Time (fs)')
-    ax1.set_ylabel('Radial contraction φ')
+    ax1.set_ylabel('Radial Order Parameter φ')
     ax1.set_title('CDW Order Parameter (star-of-David)')
     ax1.grid(alpha=0.3)
+    ax1.legend()
 
     # Bottom: autocorrelation
     ax2.plot(tau_lags, corr, 'r-', lw=1.5, label='Autocorrelation')
     if model == 'exp' and tau is not None:
         t_fit = np.linspace(0, tau_lags[-1], 200)
         ax2.plot(t_fit, np.exp(-t_fit/tau), 'g:', alpha=0.7)
-        # ax2.axvline(tau, color='g', linestyle='--', label=f'τ = {tau:.1f} fs')
 
     elif model == 'damped_osc' and period is not None:
         t_fit = np.linspace(0, tau_lags[-1], 200)
