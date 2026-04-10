@@ -9,7 +9,7 @@ import textwrap
 from pathlib import Path
 from scipy.signal import find_peaks
 from scipy.optimize import curve_fit
-from typing import List, Tuple
+from typing import Any, List, Tuple
 try:
     from parse_movement import add_parser_args, MovementParser
 except ImportError:
@@ -31,7 +31,8 @@ def parse_arguments():
             Dr. Huan Wang <huan.wang@whut.edu.cn>
 
         Example:
-            python cdw_autocorr.py -f MOVEMENT -cid 42 -sid 0-11 --ref-distance 3.3 -st 0 -et 1000 -o cdw_analysis
+            python analysis_OrderParameter.py -f MOVEMENT -cid 25 -sid 0-11 --ref-distance 3.3 -st 0 -et 1000 -o analysis
+            python analysis_OrderParameter.py -f MOVEMENT -cid 25 -sid 0-11 -f2 REF_MOVEMENT -st 0 -et 1000 -o analysis
         """)
     )
     # --- parameters adopted from parse_movement.py ---
@@ -48,9 +49,16 @@ def parse_arguments():
         type=str, nargs='+', required=True,
         help="Indices of 12 surrounding Ta atoms (0-based), e.g., '0-11' or '1 2 3 4 5 6 7 8 9 10 11 12'",
         )
-    parser.add_argument(
-        "--ref-distance",
-        type=float, 
+    # Mutually exclusive reference distance source
+    ref_group = parser.add_mutually_exclusive_group(required=True)
+    ref_group.add_argument(
+        "-f2", "--ref-trajectory", 
+        type=Path, default=None,
+        help="Second MOVEMENT file (e.g., equilibrium AIMD) to compute average distance as reference",
+        )
+    ref_group.add_argument(
+        "--ref-distance", type=float, 
+        default=None,
         help="Reference Ta-Ta distance in undistorted lattice (Å)",
         )
     parser.add_argument(
@@ -98,37 +106,78 @@ def parse_indices_range(s: str) -> List[int]:
     else:
         return [int(s)]
     
-def compute_radial_contraction(center_frac: np.ndarray, surrounding_frac: np.ndarray, 
-                               lattice: np.ndarray, ref_dist: float) -> float:
+def compute_distances_pbc(center_frac: np.ndarray, surrounding_frac: np.ndarray, 
+                          lattice: np.ndarray) -> np.ndarray:
     """
-    Compute radial contraction order parameter.
-
-    Arguements:
-        center_frac:        shape (3,) array of central atom fractional coordinates
-        surrounding_frac:   shape(12,3) array of surrounding atom fractional coordinates
-        ref_dist:           reference distance (Å) in undistorted lattice
+    Compute distances from center to each surrounding atom using periodic boundary conditions.
     
-    Returns: 
-        phi:                (mean_distance - ref_dist) / ref_dist
-                        Negative means contraction (ordered), zero means disordered.
+    Parameters
+    ----------
+    center_frac : np.ndarray, shape (3,)
+        Fractional coordinates of the central atom.
+    surrounding_frac : np.ndarray, shape (n, 3)
+        Fractional coordinates of surrounding atoms.
+    lattice : np.ndarray, shape (3, 3)
+        Lattice vectors (rows).
+    
+    Returns
+    -------
+    distances : np.ndarray, shape (n,)
+        Distances in Å.
     """
-    # Fractional differences
     diff_frac = surrounding_frac - center_frac
-    # Minimum image convention
-    diff_frac -= np.round(diff_frac)
-    # Convert to Cartesian coordinates
-    diff_cart = diff_frac @ lattice.T
-    # calculate distances
+    diff_frac -= np.round(diff_frac)                # minimum image convention
+    diff_cart = diff_frac @ lattice.T               # convert to Cartesian
     distances = np.linalg.norm(diff_cart, axis=-1)
+    return distances
+
+def compute_per_frame_distances(data: Any, center_idx: int, 
+                                surrounding_indices: List[int]) -> Tuple[np.ndarray, List[np.ndarray]]:
+    """
+    For each frame, compute distances from center atom to surrounding atoms.
+    
+    Returns
+    -------
+    times : np.ndarray, shape (n_frames,)
+        Time for each frame.
+    distances_list : list of np.ndarray
+        Each element is an array of distances (length = number of surrounding atoms).
+    """
+    n_frames = data.n_frames
+    times = data.iter_time
+    distances_list = []
+    for i in range(n_frames):
+        frac_all = data.position[i]
+        lattice = data.lattice[i]
+        center_frac = frac_all[center_idx]
+        surrounding_frac = frac_all[surrounding_indices]
+        dists = compute_distances_pbc(center_frac, surrounding_frac, lattice)
+        distances_list.append(dists)
+    return times, distances_list
+
+def compute_mean_distance(data: Any, center_idx: int, surrounding_indices: List[int]) -> float:
+    """
+    Compute the average distance (with PBC) over all frames and all surrounding atoms.
+    """
+    times, dist_list = compute_per_frame_distances(data, center_idx, surrounding_indices)
+    all_distances = np.concatenate(dist_list)
+    mean_dist = np.mean(all_distances)
+    return mean_dist
+
+
+def compute_radial_contraction_phi(center_frac: np.ndarray, surrounding_frac: np.ndarray, 
+                                   lattice: np.ndarray, ref_dist: float) -> float:
+    """
+    Compute radial contraction order parameter for a single frame.
+    """
+    distances = compute_distances_pbc(center_frac, surrounding_frac, lattice)
     mean_dist = np.mean(distances)
     phi = (mean_dist - ref_dist) / ref_dist
     return phi
 
+
 def autocorrelation(x: np.ndarray, normalize: bool = True) -> tuple:
-    """
-    Compute autocorrelation C(t) for a 1D array x (time series).
-    Returns lags (in indices) and correlation values.
-    """
+    """Compute autocorrelation C(t) for a 1D array x."""
     n = len(x)
     x = x - np.mean(x)
     from scipy import signal
@@ -138,23 +187,17 @@ def autocorrelation(x: np.ndarray, normalize: bool = True) -> tuple:
         corr = corr / corr[0]
     return np.arange(n), corr
 
-def exp_decay(t, tau):
-    """Exponential decay model."""
+
+def exp_decay(t: np.ndarray, tau: float) -> np.ndarray:
     return np.exp(-t / tau)
 
-def damped_osc(t, A, tau, T, phi):
-    """Damped oscillation model: A * exp(-t/tau) * cos(2π t/T + φ)"""
+
+def damped_osc(t: float, A: float, tau: float, T: float, phi: float) -> float:
     return A * np.exp(-t / tau) * np.cos(2 * np.pi * t / T + phi)
 
-def fit_autocorrelation(t, corr, model='exp', threshold=0.1):
-    """
-    Fit autocorrelation function.
-    Returns: (tau, period, fit_params_dict)
-    For exp: tau only.
-    For damped_osc: tau, period, amplitude, phase.
-    If fit fails, returns None for missing parameters.
-    """
-    # Determine fitting range: t where corr > threshold
+
+def fit_autocorrelation(t: np.ndarray, corr: np.ndarray, 
+                        model: str = 'exp', threshold: float = 0.1) -> Tuple[float, float, dict]:
     positive = corr > threshold
     if not np.any(positive):
         return None, None, {}
@@ -165,22 +208,15 @@ def fit_autocorrelation(t, corr, model='exp', threshold=0.1):
     if model == 'exp':
         try:
             popt, _ = curve_fit(exp_decay, t_fit, corr_fit, p0=[10.0])
-            tau = popt[0]
-            return tau, None, {'tau': tau}
+            return popt[0], None, {'tau': popt[0]}
         except:
             return None, None, {}
-
     elif model == 'damped_osc':
-        # Estimate initial parameters
-        # A ~ 1 (since normalized corr starts at 1)
         A0 = 1.0
-        # tau: time to drop to 1/e ~ 0.3679
-        # find first time where corr < 0.3679
         tau_guess = 10.0
         idx_e = np.where(corr < 0.3679)[0]
         if len(idx_e) > 0:
             tau_guess = t[idx_e[0]]
-        # Period: find first positive peak after t>0
         peaks, _ = find_peaks(corr, height=0.2)
         if len(peaks) >= 2:
             T_guess = t[peaks[1]] - t[peaks[0]]
@@ -194,55 +230,64 @@ def fit_autocorrelation(t, corr, model='exp', threshold=0.1):
             A, tau, T, phi = popt
             return tau, T, {'A': A, 'tau': tau, 'T': T, 'phi': phi}
         except:
-            # Fallback to exponential fit
             print("Damped oscillation fit failed. Falling back to exponential fit.")
             tau, _, _ = fit_autocorrelation(t, corr, model='exp', threshold=threshold)
             return tau, None, {'tau': tau}
-    
-def plot_results(times: np.ndarray, phi: float, tau_lags: np.ndarray, corr: np.ndarray, 
-                 tau: float, period: float, fit_params, model: str, 
-                 output_png: str, show_plot: bool) -> None:
-    """Create and save the figure with two subplots."""
-    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
+    else:
+        return None, None, {}
 
-    # Top: order parameter vs time
+
+def plot_results(times: np.ndarray, phi: np.ndarray, tau_lags: np.ndarray, corr: np.ndarray,
+                 tau: float, period: float, fit_params: dict, model: str, output_png: Path, show_plot: bool) -> None:
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
     ax1.plot(times, phi, 'b-', lw=1, label='Radial contraction')
     ax1.set_xlim(times[0], times[-1])
     ax1.set_xlabel('Time (fs)')
     ax1.set_ylabel('Radial Order Parameter φ')
-    ax1.set_title('CDW Order Parameter (star-of-David)')
+    ax1.set_title('CDW Order Parameter')
     ax1.grid(alpha=0.3)
     ax1.legend()
 
-    # Bottom: autocorrelation
     ax2.plot(tau_lags, corr, 'r-', lw=1.5, label='Autocorrelation')
     if model == 'exp' and tau is not None:
         t_fit = np.linspace(0, tau_lags[-1], 200)
-        ax2.plot(t_fit, np.exp(-t_fit/tau), 'g:', alpha=0.7)
-
-    elif model == 'damped_osc' and period is not None:
+        ax2.plot(t_fit, exp_decay(t_fit, tau), 'g--', label=f'Exp fit: τ = {tau:.1f} fs')
+    elif model == 'damped_osc' and tau is not None:
         t_fit = np.linspace(0, tau_lags[-1], 200)
         A = fit_params.get('A', 1.0)
         T = fit_params.get('T', period)
         phi_phase = fit_params.get('phi', 0.0)
         y_fit = damped_osc(t_fit, A, tau, T, phi_phase)
         ax2.plot(t_fit, y_fit, 'g--', label=f'Damped osc: τ = {tau:.1f} fs, T = {T:.1f} fs')
-
     if period:
         ax2.axvline(period, color='m', linestyle='--', label=f'Period ≈ {period:.1f} fs')
     ax2.set_xlim(times[0], times[-1])
     ax2.set_xlabel('Lag time (fs)')
-    ax2.set_ylabel('Autocorrelation C(t)')
-    ax2.set_title('Time Autocorrelation of φ')
+    ax2.set_ylabel('C(t)')
+    ax2.set_title('Autocorrelation')
     ax2.legend()
     ax2.grid(alpha=0.3)
-
     fig.tight_layout()
     fig.savefig(output_png, dpi=300, bbox_inches='tight')
     if show_plot:
         plt.show()
     else:
         plt.close(fig)
+
+
+def load_trajectory(file_path, start_time, end_time, max_index):
+    data = MovementParser.parse(
+        file_path=file_path,
+        atom_indices=list(range(max_index + 1)),
+        element_filter=None,
+        start_time=start_time,
+        end_time=end_time,
+    )
+    print(f"Loaded {data.n_frames} frames from {file_path}")
+    if data.n_frames == 0:
+        raise RuntimeError(f"No frames loaded from {file_path}")
+    return data
+
 
 def main():
     args = parse_arguments()
@@ -251,47 +296,41 @@ def main():
     surrounding_list = []
     for item in args.surrounding_idx:
         surrounding_list.extend(parse_indices_range(item))
-
-#    if len(surrounding_list) != 12:
-#        raise ValueError(f"Expected 12 surrounding atoms, got {len(surrounding_list)}")
+    # if len(surrounding_list) != 12:
+    #     raise ValueError(f"Expected 12 surrounding atoms, got {len(surrounding_list)}")
     all_indices = [args.center_idx] + surrounding_list
-    print(f"======= Selected atom indices: {all_indices} =======")
+    max_idx = max(all_indices)
 
-    # Load trajectory
-    print("Loading trajectory...")
-    data = MovementParser.parse(
-        file_path=args.file,
-        atom_indices=np.arange(max(all_indices)+1),
-        element_filter=None,
-        start_time=args.start_time,
-        end_time=args.end_time,
-    )
-    print(f"Loaded {data.n_frames} frames, {data.position.shape[1]} atoms per frame.")
-    if data.n_frames == 0:
-        raise RuntimeError("No frames loaded.")
+    # Determine reference distance
+    if args.ref_distance is not None:
+        ref_dist = args.ref_distance
+        print(f"Using user-provided reference distance: {ref_dist:.3f} Å")
+    else:
+        print(f"Computing reference distance from trajectory: {args.ref_trajectory}")
+        ref_data = load_trajectory(args.ref_trajectory, args.start_time, args.end_time, max_idx)
+        ref_dist = compute_mean_distance(ref_data, args.center_idx, surrounding_list)
+        print(f"Computed reference distance: {ref_dist:.3f} Å")
 
-    # Compute order parameter for each frame
-    phi = np.zeros(data.n_frames)
-    for i in range(data.n_frames):
-        frac_coords = data.position[i]
-        lattice = data.lattice[i]
-        center = frac_coords[all_indices[0]]
-        surrounding = frac_coords[all_indices[1:]]
-        phi[i] = compute_radial_contraction(center, surrounding, lattice, args.ref_distance)
+    # Load main trajectory
+    print("Loading main trajectory...")
+    data = load_trajectory(args.file, args.start_time, args.end_time, max_idx)
 
-    times = data.iter_time
+    # ===== Use the unified per-frame distance computation =====
+    times, distances_list = compute_per_frame_distances(data, args.center_idx, surrounding_list)
+    # Compute phi for each frame
+    phi = np.array([(np.mean(d) - ref_dist) / ref_dist for d in distances_list])
 
-    # Compute autocorrelation
+    # Autocorrelation
     lags, corr = autocorrelation(phi, normalize=True)
     dt = times[1] - times[0] if len(times) > 1 else 1.0
     tau_lags = lags * dt
 
-    # Fit autocorrelation
+    # Fit
     tau, period, fit_params = fit_autocorrelation(tau_lags, corr,
-                                                  model=args.fit_model,
-                                                  threshold=args.fit_threshold)
-    
-    # Find oscillation periods from peaks (for reference, regardless of fit)
+                                                   model=args.fit_model,
+                                                   threshold=args.fit_threshold)
+
+    # Find peaks
     peaks, _ = find_peaks(corr, height=0.2)
     periods = []
     if len(peaks) >= 2:
@@ -299,12 +338,10 @@ def main():
         avg_period = np.mean(periods)
     else:
         avg_period = None
-
-    # Use fitted period if available and more reliable
     if period is not None:
         avg_period = period
 
-    # Save data
+    # Save output
     output_base = args.output
     if output_base.suffix:
         output_base = output_base.with_suffix('')
@@ -315,24 +352,21 @@ def main():
     pd.DataFrame({'time_fs': times, 'phi': phi}).to_csv(phi_csv, index=False)
     pd.DataFrame({'lag_fs': tau_lags, 'autocorr': corr}).to_csv(corr_csv, index=False)
 
-    # Plot
     plot_results(times, phi, tau_lags, corr, tau, avg_period, fit_params, args.fit_model, png_path, args.plot)
 
-    # Print summary
+    # Summary
     print("\n" + "="*50)
     print("CDW AUTOCORRELATION ANALYSIS")
     print("="*50)
+    print(f"Reference distance: {ref_dist:.3f} Å")
     print(f"Time range: {times[0]:.2f} – {times[-1]:.2f} fs")
     print(f"Mean φ: {np.mean(phi):.4f} ± {np.std(phi):.4f}")
-
     if tau is not None:
         print(f"Coherence time τ: {tau:.2f} fs")
     else:
         print("Coherence time could not be reliably fitted.")
     if avg_period:
         print(f"Mean oscillation period: {avg_period:.2f} fs")
-        if len(periods) > 1:
-            print(f"   Individual periods: {', '.join(f'{p:.2f}' for p in periods)}")
     else:
         print("No clear oscillatory behavior detected.")
     print(f"Output files: {phi_csv}, {corr_csv}, {png_path}")
