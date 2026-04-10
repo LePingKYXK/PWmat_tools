@@ -49,7 +49,7 @@ def parse_arguments():
         type=str, nargs='+', required=True,
         help="Indices of 12 surrounding Ta atoms (0-based), e.g., '0-11' or '1 2 3 4 5 6 7 8 9 10 11 12'",
         )
-    # Mutually exclusive reference distance source
+    #### Mutually exclusive reference distance source ####
     ref_group = parser.add_mutually_exclusive_group(required=True)
     ref_group.add_argument(
         "-f2", "--ref-trajectory", 
@@ -61,6 +61,7 @@ def parse_arguments():
         default=None,
         help="Reference Ta-Ta distance in undistorted lattice (Å)",
         )
+    #### --------------------------------------------  ####
     parser.add_argument(
         "--fit-model", 
         type=str, default='damped_osc',
@@ -113,16 +114,16 @@ def compute_distances_pbc(center_frac: np.ndarray, surrounding_frac: np.ndarray,
     
     Parameters
     ----------
-    center_frac : np.ndarray, shape (3,)
+    center_frac: np.ndarray, shape (3,)
         Fractional coordinates of the central atom.
-    surrounding_frac : np.ndarray, shape (n, 3)
+    surrounding_frac: np.ndarray, shape (n, 3)
         Fractional coordinates of surrounding atoms.
-    lattice : np.ndarray, shape (3, 3)
+    lattice: np.ndarray, shape (3, 3)
         Lattice vectors (rows).
     
     Returns
     -------
-    distances : np.ndarray, shape (n,)
+    distances: np.ndarray, shape (n,)
         Distances in Å.
     """
     diff_frac = surrounding_frac - center_frac
@@ -138,9 +139,9 @@ def compute_per_frame_distances(data: Any, center_idx: int,
     
     Returns
     -------
-    times : np.ndarray, shape (n_frames,)
+    times: np.ndarray, shape (n_frames,)
         Time for each frame.
-    distances_list : list of np.ndarray
+    distances_list: list of np.ndarray
         Each element is an array of distances (length = number of surrounding atoms).
     """
     n_frames = data.n_frames
