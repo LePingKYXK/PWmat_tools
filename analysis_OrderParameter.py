@@ -234,7 +234,7 @@ def fit_autocorrelation(t: np.ndarray, corr: np.ndarray,
 def plot_results(times: np.ndarray, phi: np.ndarray, tau_lags: np.ndarray, corr: np.ndarray,
                  tau: float, period: float, fit_params: dict, model: str, output_png: Path, show_plot: bool) -> None:
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
-    ax1.plot(times, phi, 'b-', lw=1, label='Radial contraction')
+    ax1.plot(times, phi, 'k-', lw=1, label='Radial contraction')
     ax1.set_xlim(times[0], times[-1])
     ax1.set_xlabel('Time (fs)')
     ax1.set_ylabel('Radial Order Parameter φ')
@@ -242,19 +242,19 @@ def plot_results(times: np.ndarray, phi: np.ndarray, tau_lags: np.ndarray, corr:
     ax1.grid(alpha=0.3)
     ax1.legend()
 
-    ax2.plot(tau_lags, corr, 'r-', lw=1.5, label='Autocorrelation')
+    ax2.plot(tau_lags, corr, 'b-', lw=1.5, label='Autocorrelation')
     if model == 'exp' and tau is not None:
         t_fit = np.linspace(0, tau_lags[-1], 200)
-        ax2.plot(t_fit, exp_decay(t_fit, tau), 'g--', label=f'Exp fit: τ = {tau:.1f} fs')
+        ax2.plot(t_fit, exp_decay(t_fit, tau), 'r--', label=f'Exp fit: τ = {tau:.1f} fs')
     elif model == 'damped_osc' and tau is not None:
         t_fit = np.linspace(0, tau_lags[-1], 200)
         A = fit_params.get('A', 1.0)
         T = fit_params.get('T', period)
         phi_phase = fit_params.get('phi', 0.0)
         y_fit = damped_osc(t_fit, A, tau, T, phi_phase)
-        ax2.plot(t_fit, y_fit, 'g--', label=f'Damped osc: τ = {tau:.1f} fs, T = {T:.1f} fs')
+        ax2.plot(t_fit, y_fit, 'r--', label=f'Damped osc: τ = {tau:.1f} fs, T = {T:.1f} fs')
     if period:
-        ax2.axvline(period, color='m', linestyle='--', label=f'Period ≈ {period:.1f} fs')
+        ax2.axvline(period, color='m', linestyle=':', label=f'Period ≈ {period:.1f} fs')
     ax2.set_xlim(times[0], times[-1])
     ax2.set_xlabel('Lag time (fs)')
     ax2.set_ylabel('C(t)')
