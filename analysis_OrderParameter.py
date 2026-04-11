@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import textwrap
 from pathlib import Path
-from scipy.signal import find_peaks
+from scipy.signal import correlate, find_peaks
 from scipy.optimize import curve_fit
 from typing import Any, List, Tuple
 try:
@@ -165,7 +165,6 @@ def compute_mean_distance(data: Any, center_idx: int, surrounding_indices: List[
     mean_dist = np.mean(all_distances)
     return mean_dist
 
-
 def compute_radial_contraction_phi(center_frac: np.ndarray, surrounding_frac: np.ndarray, 
                                    lattice: np.ndarray, ref_dist: float) -> float:
     """
@@ -176,26 +175,21 @@ def compute_radial_contraction_phi(center_frac: np.ndarray, surrounding_frac: np
     phi = (mean_dist - ref_dist) / ref_dist
     return phi
 
-
 def autocorrelation(x: np.ndarray, normalize: bool = True) -> tuple:
     """Compute autocorrelation C(t) for a 1D array x."""
     n = len(x)
     x = x - np.mean(x)
-    from scipy import signal
-    corr = signal.correlate(x, x, mode='full', method='auto')
+    corr = correlate(x, x, mode='full', method='auto')
     corr = corr[n-1:] / (n - np.arange(n))
     if normalize:
         corr = corr / corr[0]
     return np.arange(n), corr
 
-
 def exp_decay(t: np.ndarray, tau: float) -> np.ndarray:
     return np.exp(-t / tau)
 
-
 def damped_osc(t: float, A: float, tau: float, T: float, phi: float) -> float:
     return A * np.exp(-t / tau) * np.cos(2 * np.pi * t / T + phi)
-
 
 def fit_autocorrelation(t: np.ndarray, corr: np.ndarray, 
                         model: str = 'exp', threshold: float = 0.1) -> Tuple[float, float, dict]:
@@ -237,7 +231,6 @@ def fit_autocorrelation(t: np.ndarray, corr: np.ndarray,
     else:
         return None, None, {}
 
-
 def plot_results(times: np.ndarray, phi: np.ndarray, tau_lags: np.ndarray, corr: np.ndarray,
                  tau: float, period: float, fit_params: dict, model: str, output_png: Path, show_plot: bool) -> None:
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 8))
@@ -275,7 +268,6 @@ def plot_results(times: np.ndarray, phi: np.ndarray, tau_lags: np.ndarray, corr:
     else:
         plt.close(fig)
 
-
 def load_trajectory(file_path, start_time, end_time, max_index):
     data = MovementParser.parse(
         file_path=file_path,
@@ -288,7 +280,6 @@ def load_trajectory(file_path, start_time, end_time, max_index):
     if data.n_frames == 0:
         raise RuntimeError(f"No frames loaded from {file_path}")
     return data
-
 
 def main():
     args = parse_arguments()
