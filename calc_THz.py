@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import textwrap
 from scipy.fft import rfftfreq, next_fast_len, rfftn, irfftn
-from scipy.signal import welch, windows, find_peaks
+from scipy.signal import detrend, find_peaks, welch, windows
 from scipy.ndimage import gaussian_filter1d
 from scipy.constants import femto, tera
 from pathlib import Path
@@ -16,8 +16,8 @@ try:
     from parse_movement import add_parser_args, MovementParser
 except ImportError:
     raise ImportError("parse_movement.py not found. Please ensure it is in the same directory.")
-class MyFormatter(ap.RawDescriptionHelpFormatter, 
-                  ap.ArgumentDefaultsHelpFormatter):
+
+class MyFormatter(ap.RawDescriptionHelpFormatter, ap.ArgumentDefaultsHelpFormatter):
     pass
 
 # ======================== Argument Parsing ========================
@@ -27,95 +27,84 @@ def parse_arguments():
         description=textwrap.dedent("""
         THz spectrum analysis from PWmat MOVEMENT trajectory.
         Computes distances between specified atom pairs (with PBC) and calculates THz spectrum.
-                                    
+        Also saves distance vs. time data to a CSV file.
+
         Author:
             Dr. Huan Wang <huan.wang@whut.edu.cn>
         Example:
-          python thz_from_movement.py -f MOVEMENT -id 0 1 2 3 -st 0 -et 500 -o thz_results
+          python calc_THz.py -f MOVEMENT -id 0 1 2 3 -st 0 -et 500 -o THz_results -p
         """)
     )
-    # --- Inherit arguments from parse_movement.py ---
     add_parser_args(parser)
 
-    # --- THz analysis parameters ---
     parser.add_argument(
         "-id", "--indices", 
         type=str, nargs='+', required=True,
         help="Atom indices (0-based) in pairs, e.g., '0 1 2 3' or with ranges '0-5 10-15'.",
-        )
+    )
     parser.add_argument(
         "-o", "--output", 
         type=Path, default=Path.cwd() / "THz_analysis",
         help="Output base name (without extension). Creates .csv and .png files.",
-        )
+    )
     parser.add_argument(
         "-w", "--window", 
         type=str, default='hann',
         choices=['hann', 'hamming', 'blackman', 'bartlett', 'none'],
         help="Window function",
-        )
+    )
     parser.add_argument(
         "--method", 
-        type=str, 
-        default='rfftn', 
+        type=str, default='rfftn', 
         choices=['rfftn', 'welch'],
-        )
+    )
     parser.add_argument(
         "--preprocess", 
-        type=str, 
-        default='detrend',
+        type=str, default='detrend',
         choices=['detrend', 'diff', 'raw'],
-        )
+    )
     parser.add_argument(
         "--smooth", 
-        type=float, 
-        default=0.0, 
+        type=float, default=0.0, 
         help="Gaussian smoothing sigma (Å)",
-        )
+    )
     parser.add_argument(
         "--min-peak-height", 
-        type=float, 
-        default=0.05,
-        )
+        type=float, default=0.05,
+    )
     parser.add_argument(
         "--no-avg", 
         action="store_true", 
         help="Do NOT compute average distance spectrum",
-        )
+    )
     parser.add_argument(
         "--dt", 
-        type=float, 
-        default=None, 
+        type=float, default=None, 
         help="Time step in fs (auto-detect if not given)",
-        )
+    )
     parser.add_argument(
         "-p", "--plot", 
         action="store_true", 
-        help="Show plot window interactively",
-        )
-    parser.add_argument(
-        "--no-plot", 
-        action="store_true", 
-        help="Do NOT show plot window",
-        )
+        help="Show plot window interactively (plot is always saved)",
+    )
     parser.add_argument(
         "--create-example", 
         action="store_true", 
         help="Not implemented",
-        )
+    )
     return parser.parse_args()
 
 # ======================== Index Parsing ========================
 def parse_indices_list_keep_order(indices_str_list: List[str]):
     indices = []
-    for token in indices_str_list:
-        if '-' in token:
-            start, end = map(int, token.split('-'))
+    for item in indices_str_list:
+        if '-' in item:
+            start, end = map(int, item.split('-'))
             if start > end:
-                raise ValueError(f"Invalid range: {token}")
+                raise ValueError(f"Invalid range: {item}")
             indices.extend(range(start, end+1))
         else:
-            indices.append(int(token))
+            indices.append(int(item))
     return indices
 
 # ======================== PBC Distance ========================
@@ -185,6 +174,10 @@ def compute_vacf_fft(velocity: np.ndarray, zero_pad_to_power2: bool=True) -> np.
 def compute_thz_spectrum(vacf: np.ndarray, dt_s: float, method: str='rfftn', apply_window: bool=True,
                          window_type: str='hann', freq_limit_thz: float=20.0) -> Tuple[np.ndarray, np.ndarray]:
     n_time, n_dist = vacf.shape
+
+    # Use 8x zero-padding to significantly improve frequency resolution (smoother lines)
+    PADDING_FACTOR = 8
+
     if method == 'rfftn':
         if apply_window:
             if window_type.lower() == 'hann':
@@ -200,30 +193,41 @@ def compute_thz_spectrum(vacf: np.ndarray, dt_s: float, method: str='rfftn', app
             vacf_windowed = vacf * window
         else:
             vacf_windowed = vacf
-        n_fft = next_fast_len(n_time)
+
+        # Use larger zero-padding to get finer frequency grid
+        n_fft = next_fast_len(n_time * PADDING_FACTOR)
         vacf_padded = np.zeros((n_fft, n_dist))
         vacf_padded[:n_time] = vacf_windowed
+
         spectrum = np.abs(rfftn(vacf_padded, axes=0))
         freq = rfftfreq(n_fft, d=dt_s)
         freq_thz = freq / tera
-    else:  # welch
-        n_seg = min(256, n_time // 4)
+
+    else:  # welch method – also improve by using longer segments and more overlap
+        n_seg = min(2048, n_time // 4)
+        noverlap = n_seg * 3 // 4
         freq_thz = None
         spec_list = []
         for i in range(n_dist):
-            f, psd = welch(vacf[:, i], fs=1/dt_s, window=window_type,
-                           nperseg=n_seg, scaling='density')
+            signal = detrend(vacf[:, i], type='linear')
+            f, psd = welch(signal, fs=1/dt_s, window=window_type,
+                           nperseg=n_seg, noverlap=noverlap, scaling='spectrum') # 'density'
             if freq_thz is None:
                 freq_thz = f / tera
             spec_list.append(psd)
         spectrum = np.column_stack(spec_list)
+
+    # Apply frequency limit
     mask = (freq_thz >= 0) & (freq_thz <= freq_limit_thz)
     freq_thz = freq_thz[mask]
     spectrum = spectrum[mask]
+
+    # Normalize each column individually
     spectrum /= np.max(spectrum, axis=0, keepdims=True)
+
     return freq_thz, spectrum
 
-def find_peaks_spectrum(freq_thz: np.ndarray, spectrum: np.ndarray, 
+def find_peaks_spectrum(freq_thz: np.ndarray, spectrum: np.ndarray,
                         min_height: float=0.05, min_distance_thz: float=1.0) -> List[dict]:
     if spectrum.ndim > 1:
         spectrum = np.mean(spectrum, axis=1)
@@ -243,30 +247,49 @@ def find_peaks_spectrum(freq_thz: np.ndarray, spectrum: np.ndarray,
     except:
         return []
 
-# ======================== Save Functions (fixed path handling) ========================
-def save_spectra_csv(freq_thz: np.ndarray, spectrum_matrix: np.ndarray, 
-                     output_base: Path, avg_spectrum: np.ndarray=None) -> None:
-    """Save spectra to CSV. output_base is Path without extension."""
+# ======================== Save Data ========================
+def save_distances_csv(times_fs: np.ndarray, distances: np.ndarray, 
+                       pair_labels: List[str], output_base: Path) -> None:
+    """
+    Save distance vs. time data to CSV.
+    Column names: Time, dist_label1, dist_label2, ...
+    """
+    dist_path = output_base.parent / (output_base.stem + '_distance.csv')
+    data = {'Time (fs)': times_fs}
+    for i, label in enumerate(pair_labels):
+        data[f'dist_{label}'] = distances[:, i]
+    pd.DataFrame(data).to_csv(dist_path, index=False)
+    print(f"Distance-Time data saved to {dist_path}")
+
+def save_spectra_csv(freq_thz: np.ndarray, spectrum_matrix: np.ndarray,
+                     output_base: Path, pair_labels: List[str] = None, avg_spectrum: np.ndarray = None) -> None:
+    """
+    Save spectra to CSV.
+    pair_labels: list of labels for each pair (e.g., 'Ta(25)-Ta(19)')
+    """
     csv_path = output_base.with_suffix('.csv')
     data = {'Frequency (THz)': freq_thz}
-    for i in range(spectrum_matrix.shape[1]):
-        data[f'Pair_{i+1}'] = spectrum_matrix[:, i]
+    if pair_labels is not None and len(pair_labels) == spectrum_matrix.shape[1]:
+        for i, label in enumerate(pair_labels):
+            data[label] = spectrum_matrix[:, i]
+    else:
+        for i in range(spectrum_matrix.shape[1]):
+            data[f'Pair_{i+1}'] = spectrum_matrix[:, i]
     if avg_spectrum is not None:
         data['Average'] = avg_spectrum
     pd.DataFrame(data).to_csv(csv_path, index=False)
-    print(f"Spectra saved to {csv_path}")
+    print(f"THz Spectra saved to {csv_path}")
 
 def save_peaks_csv(peaks: List[dict], output_base: Path) -> None:
-    """Save peaks to CSV. output_base is Path without extension."""
     if not peaks:
         return
     peaks_path = output_base.parent / (output_base.stem + '_peaks.csv')
     pd.DataFrame(peaks).to_csv(peaks_path, index=False)
-    print(f"Peaks saved to {peaks_path}")
+    print(f"Peaks information saved to {peaks_path}")
 
 # ======================== Plotting ========================
-def plot_results(time_fs: np.ndarray, distances: np.ndarray, vacf: np.ndarray, freq_thz: np.ndarray, 
-                 spectrum_matrix: np.ndarray, pairs_info: List[str], avg_spectrum: np.ndarray, 
+def plot_results(time_fs: np.ndarray, distances: np.ndarray, vacf: np.ndarray, freq_thz: np.ndarray,
+                 spectrum_matrix: np.ndarray, pairs_info: List[str], avg_spectrum: np.ndarray,
                  peaks: List[dict], output_base: Path, interactive: bool=False) -> None:
     n_pairs = distances.shape[1]
     fig = plt.figure(figsize=(12, 8))
@@ -390,13 +413,16 @@ def main():
     dt_s = dt_fs * femto
     print(f"Time step: {dt_fs:.4f} fs, total time: {times_fs[-1]-times_fs[0]:.2f} fs")
 
-    # Legend labels
+    # Legend labels (also used for CSV column names)
     idx_to_element = {global_idx: data.elements[i] for i, global_idx in enumerate(data.selected_indices)}
     pairs_info = []
     for i1, i2 in pairs:
         elem1 = idx_to_element.get(i1, f"X{i1}")
         elem2 = idx_to_element.get(i2, f"X{i2}")
         pairs_info.append(f"{elem1}({i1})-{elem2}({i2})")
+
+    # ===== NEW: Save distance-time data =====
+    save_distances_csv(times_fs, distances, pairs_info, args.output)
 
     # Preprocess
     processed = preprocess_distances(distances, method=args.preprocess, smooth_sigma=args.smooth)
@@ -407,7 +433,7 @@ def main():
     # VACF
     vacf = compute_vacf_fft(velocity, zero_pad_to_power2=True)
 
-    # THz spectrum
+    # THz spectrum (improved with 8x zero-padding)
     freq_thz, spectrum_matrix = compute_thz_spectrum(
         vacf, dt_s, method=args.method, apply_window=True,
         window_type=args.window, freq_limit_thz=20.0
@@ -432,23 +458,25 @@ def main():
     if output_base.suffix:
         output_base = output_base.with_suffix('')
 
-    # Save outputs (fixed path generation)
-    save_spectra_csv(freq_thz, spectrum_matrix, output_base, avg_spectrum)
+    # Save outputs
+    save_spectra_csv(freq_thz, spectrum_matrix, output_base, pair_labels=pairs_info, avg_spectrum=avg_spectrum)
     if peaks:
         save_peaks_csv(peaks, output_base)
 
     # Plot
-    interactive = args.plot and not args.no_plot
+    interactive = args.plot
     plot_results(times_fs, distances, vacf, freq_thz, spectrum_matrix, pairs_info,
                  avg_spectrum, peaks, output_base, interactive)
 
     print("\n" + "="*60)
     print("THz analysis completed.")
-    print(f"Output files: {output_base}.csv, {output_base}.png")
+    print(f"Output files:")
+    print(f"  Distance-Time data: {output_base.parent / (output_base.stem + '_distance.csv')}")
+    print(f"  THzSpectra: {output_base}.csv")
+    print(f"  Plot: {output_base}.png")
     if peaks:
-        print(f"Peaks file: {output_base.parent / (output_base.stem + '_peaks.csv')}")
+        print(f"  Peaks: {output_base.parent / (output_base.stem + '_peaks.csv')}")
     print("="*60)
-
 
 if __name__ == "__main__":
     main()
