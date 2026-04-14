@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import textwrap
 from scipy.fft import rfftfreq, next_fast_len, rfftn, irfftn
-from scipy.signal import welch, windows, find_peaks
+from scipy.signal import detrend, find_peaks, welch, windows
 from scipy.ndimage import gaussian_filter1d
 from scipy.constants import femto, tera
 from pathlib import Path
@@ -204,13 +204,14 @@ def compute_thz_spectrum(vacf: np.ndarray, dt_s: float, method: str='rfftn', app
         freq_thz = freq / tera
 
     else:  # welch method – also improve by using longer segments and more overlap
-        n_seg = min(512, n_time // 2)
-        noverlap = n_seg // 2
+        n_seg = min(2048, n_time // 4)
+        noverlap = n_seg * 3 // 4
         freq_thz = None
         spec_list = []
         for i in range(n_dist):
-            f, psd = welch(vacf[:, i], fs=1/dt_s, window=window_type,
-                           nperseg=n_seg, noverlap=noverlap, scaling='density')
+            signal = detrend(vacf[:, i], type='linear')
+            f, psd = welch(signal, fs=1/dt_s, window=window_type,
+                           nperseg=n_seg, noverlap=noverlap, scaling='spectrum') # 'density'
             if freq_thz is None:
                 freq_thz = f / tera
             spec_list.append(psd)
