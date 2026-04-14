@@ -12,7 +12,6 @@ from scipy.ndimage import gaussian_filter1d
 from scipy.constants import femto, tera
 from pathlib import Path
 from typing import Any, List, Tuple
-
 try:
     from parse_movement import add_parser_args, MovementParser
 except ImportError:
@@ -28,11 +27,12 @@ def parse_arguments():
         description=textwrap.dedent("""
         THz spectrum analysis from PWmat MOVEMENT trajectory.
         Computes distances between specified atom pairs (with PBC) and calculates THz spectrum.
+        Also saves distance vs. time data to a CSV file.
 
         Author:
             Dr. Huan Wang <huan.wang@whut.edu.cn>
         Example:
-          python thz_from_movement.py -f MOVEMENT -id 0 1 2 3 -st 0 -et 500 -o thz_results
+          python calc_THz.py -f MOVEMENT -id 0 1 2 3 -st 0 -et 500 -o THz_results -p
         """)
     )
     add_parser_args(parser)
@@ -97,14 +97,14 @@ def parse_arguments():
 # ======================== Index Parsing ========================
 def parse_indices_list_keep_order(indices_str_list: List[str]):
     indices = []
-    for token in indices_str_list:
-        if '-' in token:
-            start, end = map(int, token.split('-'))
+    for item in indices_str_list:
+        if '-' in item:
+            start, end = map(int, item.split('-'))
             if start > end:
-                raise ValueError(f"Invalid range: {token}")
+                raise ValueError(f"Invalid range: {item}")
             indices.extend(range(start, end+1))
         else:
-            indices.append(int(token))
+            indices.append(int(item))
     return indices
 
 # ======================== PBC Distance ========================
@@ -246,7 +246,20 @@ def find_peaks_spectrum(freq_thz: np.ndarray, spectrum: np.ndarray,
     except:
         return []
 
-# ======================== Save Functions ========================
+# ======================== Save Data ========================
+def save_distances_csv(times_fs: np.ndarray, distances: np.ndarray, 
+                       pair_labels: List[str], output_base: Path) -> None:
+    """
+    Save distance vs. time data to CSV.
+    Column names: Time, dist_label1, dist_label2, ...
+    """
+    dist_path = output_base.parent / (output_base.stem + '_distance.csv')
+    data = {'Time (fs)': times_fs}
+    for i, label in enumerate(pair_labels):
+        data[f'dist_{label}'] = distances[:, i]
+    pd.DataFrame(data).to_csv(dist_path, index=False)
+    print(f"Distance-Time data saved to {dist_path}")
+
 def save_spectra_csv(freq_thz: np.ndarray, spectrum_matrix: np.ndarray,
                      output_base: Path, pair_labels: List[str] = None, avg_spectrum: np.ndarray = None) -> None:
     """
@@ -264,14 +277,14 @@ def save_spectra_csv(freq_thz: np.ndarray, spectrum_matrix: np.ndarray,
     if avg_spectrum is not None:
         data['Average'] = avg_spectrum
     pd.DataFrame(data).to_csv(csv_path, index=False)
-    print(f"Spectra saved to {csv_path}")
+    print(f"THz Spectra saved to {csv_path}")
 
 def save_peaks_csv(peaks: List[dict], output_base: Path) -> None:
     if not peaks:
         return
     peaks_path = output_base.parent / (output_base.stem + '_peaks.csv')
     pd.DataFrame(peaks).to_csv(peaks_path, index=False)
-    print(f"Peaks saved to {peaks_path}")
+    print(f"Peaks information saved to {peaks_path}")
 
 # ======================== Plotting ========================
 def plot_results(time_fs: np.ndarray, distances: np.ndarray, vacf: np.ndarray, freq_thz: np.ndarray,
@@ -407,6 +420,9 @@ def main():
         elem2 = idx_to_element.get(i2, f"X{i2}")
         pairs_info.append(f"{elem1}({i1})-{elem2}({i2})")
 
+    # ===== NEW: Save distance-time data =====
+    save_distances_csv(times_fs, distances, pairs_info, args.output)
+
     # Preprocess
     processed = preprocess_distances(distances, method=args.preprocess, smooth_sigma=args.smooth)
 
@@ -441,21 +457,24 @@ def main():
     if output_base.suffix:
         output_base = output_base.with_suffix('')
 
-    # Save outputs – now with proper column labels
+    # Save outputs
     save_spectra_csv(freq_thz, spectrum_matrix, output_base, pair_labels=pairs_info, avg_spectrum=avg_spectrum)
     if peaks:
         save_peaks_csv(peaks, output_base)
 
-    # Plot – only show interactive if -p is given
+    # Plot
     interactive = args.plot
     plot_results(times_fs, distances, vacf, freq_thz, spectrum_matrix, pairs_info,
                  avg_spectrum, peaks, output_base, interactive)
 
     print("\n" + "="*60)
     print("THz analysis completed.")
-    print(f"Output files: {output_base}.csv, {output_base}.png")
+    print(f"Output files:")
+    print(f"  Distance-Time data: {output_base.parent / (output_base.stem + '_distance.csv')}")
+    print(f"  THzSpectra: {output_base}.csv")
+    print(f"  Plot: {output_base}.png")
     if peaks:
-        print(f"Peaks file: {output_base.parent / (output_base.stem + '_peaks.csv')}")
+        print(f"  Peaks: {output_base.parent / (output_base.stem + '_peaks.csv')}")
     print("="*60)
 
 if __name__ == "__main__":
